@@ -13,7 +13,7 @@ param location string = resourceGroup().location
   'S2'
   'P1v2'
 ])
-param appServicePlanSku string = 'B1'
+param appServicePlanSku string = 'S1'
 
 @description('Application Insights Workspace name')
 param workspaceName string = 'sre-perf-demo-workspace'
@@ -275,11 +275,11 @@ resource cpuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
       'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
       allOf: [
         {
-          name: 'CpuPercentage'
-          metricName: 'CpuPercentage'
+          name: 'CpuTime'
+          metricName: 'CpuTime'
           operator: 'GreaterThan'
-          threshold: 80
-          timeAggregation: 'Average'
+          threshold: 60
+          timeAggregation: 'Total'
           criterionType: 'StaticThresholdCriterion'
         }
       ]
@@ -304,10 +304,10 @@ resource memoryAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
       'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
       allOf: [
         {
-          name: 'MemoryPercentage'
-          metricName: 'MemoryPercentage'
+          name: 'MemoryWorkingSet'
+          metricName: 'MemoryWorkingSet'
           operator: 'GreaterThan'
-          threshold: 85
+          threshold: 1000000000
           timeAggregation: 'Average'
           criterionType: 'StaticThresholdCriterion'
         }

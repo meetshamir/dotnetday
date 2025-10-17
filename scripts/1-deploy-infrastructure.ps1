@@ -156,7 +156,7 @@ Staging:           https://$AppServiceName-staging.azurewebsites.net
 
 Monitoring Resources Created
 ─────────────────────────────────────────────────────────────────
-[+] App Service Plan (B1 SKU)
+[+] App Service Plan (S1 SKU)
 [+] App Service with Production + Staging slots
 [+] Application Insights
 [+] Log Analytics Workspace

@@ -5,7 +5,11 @@
       "Bash(dotnet build)",
       "Bash(powershell -File \".\\1-deploy-infrastructure.ps1\")",
       "Bash(powershell -File \".\\scripts\\1-deploy-infrastructure.ps1\")",
-      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; & ''.\\scripts\\1-deploy-infrastructure.ps1''\")"
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; & ''.\\scripts\\1-deploy-infrastructure.ps1''\")",
+      "Bash(powershell -File \".\\scripts\\2-deploy-healthy-app.ps1\")",
+      "Bash(powershell -Command \"Get-Content ''SREPerfDemo\\Controllers\\CpuIntensiveController.cs'' | Select-Object -Last 20\")",
+      "Bash(powershell -File \".\\scripts\\3-deploy-cpu-intensive-to-staging.ps1\")",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

@@ -23,12 +23,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Get the script directory and set paths
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Split-Path -Parent $ScriptDir
+$ConfigPath = Join-Path $ProjectRoot "demo-config.json"
+
 # Color output functions
-function Write-Success { Write-Host "✅ $args" -ForegroundColor Green }
-function Write-Info { Write-Host "ℹ️  $args" -ForegroundColor Cyan }
-function Write-Warn { Write-Host "⚠️  $args" -ForegroundColor Yellow }
-function Write-Err { Write-Host "❌ $args" -ForegroundColor Red }
-function Write-Step { Write-Host "`n🚀 $args" -ForegroundColor Magenta }
+function Write-Success { Write-Host "[SUCCESS] $args" -ForegroundColor Green }
+function Write-Info { Write-Host "[INFO] $args" -ForegroundColor Cyan }
+function Write-Warn { Write-Host "[WARNING] $args" -ForegroundColor Yellow }
+function Write-Err { Write-Host "[ERROR] $args" -ForegroundColor Red }
+function Write-Step { Write-Host "`n[STEP] $args" -ForegroundColor Magenta }
 
 Write-Host @"
 ╔════════════════════════════════════════════════════════════════╗
@@ -40,8 +45,8 @@ Write-Host @"
 "@ -ForegroundColor Green
 
 # Load configuration from previous step
-if (Test-Path "demo-config.json") {
-    $config = Get-Content "demo-config.json" | ConvertFrom-Json
+if (Test-Path $ConfigPath) {
+    $config = Get-Content $ConfigPath | ConvertFrom-Json
     if (-not $ResourceGroupName -or $ResourceGroupName -eq "sre-perf-demo-rg") {
         $ResourceGroupName = $config.ResourceGroupName
     }
@@ -91,14 +96,18 @@ Write-Success "Logged in as: $($accountInfo.user.name)"
 
 # Build and publish application
 Write-Step "Building Application"
-Push-Location "../SREPerfDemo"
+$AppPath = Join-Path $ProjectRoot "SREPerfDemo"
+Push-Location $AppPath
 
 try {
+    Write-Info "Cleaning previous builds..."
+    dotnet clean --configuration Release --nologo --verbosity quiet
+
     Write-Info "Restoring packages..."
     dotnet restore --nologo --verbosity quiet
 
     Write-Info "Building application..."
-    dotnet build --configuration Release --no-restore --nologo --verbosity quiet
+    dotnet build --configuration Release --no-restore --nologo --verbosity minimal
 
     Write-Info "Publishing application..."
     dotnet publish --configuration Release --no-build --output "./publish" --nologo --verbosity quiet
@@ -128,10 +137,11 @@ Pop-Location
 Write-Step "Deploying to Production Slot"
 Write-Info "Uploading and deploying healthy application..."
 
+$DeployZipPath = Join-Path $AppPath "deploy.zip"
 az webapp deployment source config-zip `
     --resource-group $ResourceGroupName `
     --name $AppServiceName `
-    --src "../SREPerfDemo/deploy.zip" `
+    --src $DeployZipPath `
     --output none
 
 if ($LASTEXITCODE -eq 0) {
@@ -190,7 +200,7 @@ foreach ($endpoint in $endpoints) {
 
             if ($httpResponse.StatusCode -eq 200) {
                 $responseTimes += $responseTime
-                Write-Info "  ✓ Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms"
+                Write-Info "  [+] Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms"
 
                 if ($responseTime -lt 500) {
                     $fastRequests++
@@ -208,7 +218,7 @@ foreach ($endpoint in $endpoints) {
 if ($responseTimes.Count -gt 0) {
     $avgResponseTime = ($responseTimes | Measure-Object -Average).Average
     Write-Host "`n================================================" -ForegroundColor Green
-    Write-Host "📊 Performance Test Results" -ForegroundColor Green
+    Write-Host "Performance Test Results" -ForegroundColor Green
     Write-Host "================================================" -ForegroundColor Green
     Write-Host "Total successful requests: $($responseTimes.Count)" -ForegroundColor White
     Write-Host "Fast requests (<500ms): $fastRequests" -ForegroundColor White
@@ -216,7 +226,7 @@ if ($responseTimes.Count -gt 0) {
     Write-Host "" -ForegroundColor White
 
     if ($avgResponseTime -lt 500) {
-        Write-Success "✅ Performance EXCELLENT - Average under 500ms threshold"
+        Write-Success "Performance EXCELLENT - Average under 500ms threshold"
         Write-Success "Production is ready for demo"
     } else {
         Write-Warn "Performance acceptable but higher than expected"
@@ -228,21 +238,21 @@ if ($responseTimes.Count -gt 0) {
 Write-Host @"
 
 ╔════════════════════════════════════════════════════════════════╗
-║                  HEALTHY APP DEPLOYED! ✅                       ║
+║              HEALTHY APP DEPLOYED SUCCESSFULLY!                ║
 ╚════════════════════════════════════════════════════════════════╝
 
-📋 Deployment Summary
+Deployment Summary
 ─────────────────────────────────────────────────────────────────
 Resource Group:    $ResourceGroupName
 App Service Name:  $AppServiceName
 Environment:       PRODUCTION (Healthy)
 
-🌐 URLs
+URLs
 ─────────────────────────────────────────────────────────────────
 Production:        https://$AppServiceName.azurewebsites.net
 Health Check:      https://$AppServiceName.azurewebsites.net/health
 
-🧪 Test URLs (Production - Fast Performance)
+Test URLs (Production - Fast Performance)
 ─────────────────────────────────────────────────────────────────
 Fast endpoint:     https://$AppServiceName.azurewebsites.net/api/products
 Single product:    https://$AppServiceName.azurewebsites.net/api/products/1
@@ -250,15 +260,15 @@ Search:            https://$AppServiceName.azurewebsites.net/api/products/search
 Health check:      https://$AppServiceName.azurewebsites.net/health
 Metrics:           https://$AppServiceName.azurewebsites.net/api/featureflag/metrics
 
-📊 Expected Performance
+Expected Performance
 ─────────────────────────────────────────────────────────────────
-✅ Response Times: 10-100ms
-✅ Health Status: "Healthy"
-✅ No alerts triggered
-✅ Fast database queries
-✅ Optimized processing
+[+] Response Times: 10-100ms
+[+] Health Status: "Healthy"
+[+] No alerts triggered
+[+] Fast database queries
+[+] Optimized processing
 
-🧪 Next Steps
+Next Steps
 ─────────────────────────────────────────────────────────────────
 1. Deploy CPU-intensive version to staging:
    .\3-deploy-cpu-intensive-to-staging.ps1
@@ -266,7 +276,7 @@ Metrics:           https://$AppServiceName.azurewebsites.net/api/featureflag/met
 2. View Application Insights:
    https://portal.azure.com
 
-📖 Documentation
+Documentation
 ─────────────────────────────────────────────────────────────────
 See DEMO-SCRIPT.md for complete demo walkthrough
 

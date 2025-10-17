@@ -23,12 +23,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Get the script directory and set paths
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Split-Path -Parent $ScriptDir
+$ConfigPath = Join-Path $ProjectRoot "demo-config.json"
+
 # Color output functions
-function Write-Success { Write-Host "✅ $args" -ForegroundColor Green }
-function Write-Info { Write-Host "ℹ️  $args" -ForegroundColor Cyan }
-function Write-Warn { Write-Host "⚠️  $args" -ForegroundColor Yellow }
-function Write-Err { Write-Host "❌ $args" -ForegroundColor Red }
-function Write-Step { Write-Host "`n🔥 $args" -ForegroundColor Magenta }
+function Write-Success { Write-Host "[SUCCESS] $args" -ForegroundColor Green }
+function Write-Info { Write-Host "[INFO] $args" -ForegroundColor Cyan }
+function Write-Warn { Write-Host "[WARNING] $args" -ForegroundColor Yellow }
+function Write-Err { Write-Host "[ERROR] $args" -ForegroundColor Red }
+function Write-Step { Write-Host "`n[STEP] $args" -ForegroundColor Magenta }
 
 Write-Host @"
 ╔════════════════════════════════════════════════════════════════╗
@@ -40,8 +45,8 @@ Write-Host @"
 "@ -ForegroundColor Red
 
 # Load configuration from previous step
-if (Test-Path "demo-config.json") {
-    $config = Get-Content "demo-config.json" | ConvertFrom-Json
+if (Test-Path $ConfigPath) {
+    $config = Get-Content $ConfigPath | ConvertFrom-Json
     if (-not $ResourceGroupName -or $ResourceGroupName -eq "sre-perf-demo-rg") {
         $ResourceGroupName = $config.ResourceGroupName
     }
@@ -93,14 +98,18 @@ Write-Success "Logged in as: $($accountInfo.user.name)"
 
 # Build and publish application
 Write-Step "Building Application"
-Push-Location "../SREPerfDemo"
+$AppPath = Join-Path $ProjectRoot "SREPerfDemo"
+Push-Location $AppPath
 
 try {
+    Write-Info "Cleaning previous builds..."
+    dotnet clean --configuration Release --nologo --verbosity quiet
+
     Write-Info "Restoring packages..."
     dotnet restore --nologo --verbosity quiet
 
     Write-Info "Building application..."
-    dotnet build --configuration Release --no-restore --nologo --verbosity quiet
+    dotnet build --configuration Release --no-restore --nologo --verbosity minimal
 
     Write-Info "Publishing application..."
     dotnet publish --configuration Release --no-build --output "./publish" --nologo --verbosity quiet
@@ -130,11 +139,12 @@ Pop-Location
 Write-Step "Deploying to Staging Slot"
 Write-Info "Uploading and deploying application..."
 
+$DeployZipPath = Join-Path $AppPath "deploy.zip"
 az webapp deployment source config-zip `
     --resource-group $ResourceGroupName `
     --name $AppServiceName `
     --slot staging `
-    --src "../SREPerfDemo/deploy.zip" `
+    --src $DeployZipPath `
     --output none
 
 if ($LASTEXITCODE -eq 0) {
@@ -215,7 +225,7 @@ foreach ($endpoint in $endpoints) {
 
             if ($httpResponse.StatusCode -eq 200) {
                 $responseTimes += $responseTime
-                Write-Info "  ✓ Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms"
+                Write-Info "  [+] Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms"
 
                 if ($responseTime -gt 1000) {
                     $slowRequests++
@@ -233,7 +243,7 @@ foreach ($endpoint in $endpoints) {
 if ($responseTimes.Count -gt 0) {
     $avgResponseTime = ($responseTimes | Measure-Object -Average).Average
     Write-Host "`n================================================" -ForegroundColor Yellow
-    Write-Host "📊 Performance Test Results" -ForegroundColor Yellow
+    Write-Host "Performance Test Results" -ForegroundColor Yellow
     Write-Host "================================================" -ForegroundColor Yellow
     Write-Host "Total successful requests: $($responseTimes.Count)" -ForegroundColor White
     Write-Host "Slow requests (>1000ms): $slowRequests" -ForegroundColor White
@@ -241,7 +251,7 @@ if ($responseTimes.Count -gt 0) {
     Write-Host "" -ForegroundColor White
 
     if ($avgResponseTime -gt 1000) {
-        Write-Warn "❌ Performance DEGRADED - Average exceeds 1000ms threshold"
+        Write-Warn "[!] Performance DEGRADED - Average exceeds 1000ms threshold"
         Write-Warn "Azure Monitor alerts should fire within 5 minutes"
         Write-Warn "CPU usage should be high (>80%)"
     } else {
@@ -264,21 +274,21 @@ try {
 Write-Host @"
 
 ╔════════════════════════════════════════════════════════════════╗
-║          CPU-INTENSIVE DEPLOYED TO STAGING! ⚠️                ║
+║          CPU-INTENSIVE DEPLOYED TO STAGING!                    ║
 ╚════════════════════════════════════════════════════════════════╝
 
-📋 Deployment Summary
+Deployment Summary
 ─────────────────────────────────────────────────────────────────
 Resource Group:    $ResourceGroupName
 App Service Name:  $AppServiceName
 Environment:       STAGING ONLY
 
-🌐 URLs
+URLs
 ─────────────────────────────────────────────────────────────────
 Staging (CPU-INTENSIVE): https://$AppServiceName-staging.azurewebsites.net
 Production (OK):         https://$AppServiceName.azurewebsites.net
 
-🧪 Test URLs (Staging - CPU-Intensive Performance)
+Test URLs (Staging - CPU-Intensive Performance)
 ─────────────────────────────────────────────────────────────────
 CPU-intensive:     https://$AppServiceName-staging.azurewebsites.net/api/cpuintensive
 Single product:    https://$AppServiceName-staging.azurewebsites.net/api/cpuintensive/1
@@ -287,7 +297,7 @@ Memory leak:       https://$AppServiceName-staging.azurewebsites.net/api/cpuinte
 Health check:      https://$AppServiceName-staging.azurewebsites.net/health
 Metrics:           https://$AppServiceName-staging.azurewebsites.net/api/featureflag/metrics
 
-📊 What to Observe
+What to Observe
 ─────────────────────────────────────────────────────────────────
 1. Azure Monitor Alerts (will fire within 5 minutes):
    - Response Time Alert (>1000ms)
@@ -307,7 +317,7 @@ Metrics:           https://$AppServiceName-staging.azurewebsites.net/api/feature
    - Staging demonstrates CPU-intensive issues
    - No slot swap will occur
 
-🧪 Next Steps
+Next Steps
 ─────────────────────────────────────────────────────────────────
 1. Generate load to trigger alerts:
    .\5-generate-load.ps1

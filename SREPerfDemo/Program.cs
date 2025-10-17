@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using SREPerfDemo;
 
 var builder = WebApplication.CreateBuilder(args);
 

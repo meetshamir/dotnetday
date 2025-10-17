@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using SREPerfDemo.Utilities;
 
 namespace SREPerfDemo.Controllers;
 
@@ -180,21 +181,5 @@ public class SlowProductsController : ControllerBase
         }
 
         return products;
-    }
-}
-
-// Simulates static memory leaks
-public static class StaticMemoryHolder
-{
-    private static readonly List<List<byte[]>> MemoryStorage = new();
-
-    public static void AddToMemory(List<byte[]> data)
-    {
-        MemoryStorage.Add(data);
-    }
-
-    public static int GetMemoryCount()
-    {
-        return MemoryStorage.Sum(list => list.Count);
     }
 }
