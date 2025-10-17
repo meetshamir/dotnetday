@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(dotnet build)",
+      "Bash(powershell -File \".\\1-deploy-infrastructure.ps1\")",
+      "Bash(powershell -File \".\\scripts\\1-deploy-infrastructure.ps1\")",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; & ''.\\scripts\\1-deploy-infrastructure.ps1''\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

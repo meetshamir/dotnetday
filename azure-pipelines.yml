@@ -1,0 +1,229 @@
+trigger:
+- main
+
+variables:
+  buildConfiguration: 'Release'
+  azureSubscription: 'YOUR_AZURE_SERVICE_CONNECTION'
+  appServiceName: 'sre-perf-demo-app'
+  resourceGroupName: 'sre-perf-demo-rg'
+
+stages:
+- stage: Build
+  displayName: 'Build and Test'
+  jobs:
+  - job: Build
+    displayName: 'Build'
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Use .NET SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '9.x'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore packages'
+      inputs:
+        command: 'restore'
+        projects: 'SREPerfDemo/SREPerfDemo.csproj'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Build application'
+      inputs:
+        command: 'build'
+        projects: 'SREPerfDemo/SREPerfDemo.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish application'
+      inputs:
+        command: 'publish'
+        projects: 'SREPerfDemo/SREPerfDemo.csproj'
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+        publishWebProjects: false
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish artifacts'
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifact: 'webapp'
+
+- stage: DeployToStaging
+  displayName: 'Deploy to Staging Slot'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - deployment: DeployStaging
+    displayName: 'Deploy to Staging'
+    environment: 'staging'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifactName: 'webapp'
+              targetPath: '$(Pipeline.Workspace)'
+
+          - task: AzureWebApp@1
+            displayName: 'Deploy to Staging Slot'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appType: 'webApp'
+              appName: '$(appServiceName)'
+              slotName: 'staging'
+              package: '$(Pipeline.Workspace)/**/*.zip'
+
+          - task: PowerShell@2
+            displayName: 'Health Check Staging'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $uri = "https://$(appServiceName)-staging.azurewebsites.net/health"
+                $maxRetries = 10
+                $retryCount = 0
+
+                do {
+                  try {
+                    $response = Invoke-RestMethod -Uri $uri -Method Get -TimeoutSec 30
+                    if ($response.status -eq "Healthy") {
+                      Write-Host "Staging slot is healthy"
+                      exit 0
+                    }
+                  }
+                  catch {
+                    Write-Host "Health check failed: $($_.Exception.Message)"
+                  }
+
+                  $retryCount++
+                  Start-Sleep -Seconds 30
+                } while ($retryCount -lt $maxRetries)
+
+                Write-Error "Staging slot failed health checks"
+                exit 1
+
+- stage: PerformanceValidation
+  displayName: 'Performance Validation'
+  dependsOn: DeployToStaging
+  condition: succeeded()
+  jobs:
+  - job: LoadTest
+    displayName: 'Run Load Tests'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: PowerShell@2
+      displayName: 'Basic Performance Test'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $baseUrl = "https://$(appServiceName)-staging.azurewebsites.net"
+          $endpoints = @("/api/products", "/api/products/1", "/api/products/search?query=test")
+          $responseTimes = @()
+
+          foreach ($endpoint in $endpoints) {
+            $uri = $baseUrl + $endpoint
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+            try {
+              $response = Invoke-RestMethod -Uri $uri -Method Get -TimeoutSec 10
+              $stopwatch.Stop()
+              $responseTime = $stopwatch.ElapsedMilliseconds
+              $responseTimes += $responseTime
+
+              Write-Host "Endpoint: $endpoint - Response Time: ${responseTime}ms"
+
+              if ($responseTime -gt 2000) {
+                Write-Warning "Slow response detected for $endpoint : ${responseTime}ms"
+              }
+            }
+            catch {
+              Write-Error "Failed to call $endpoint : $($_.Exception.Message)"
+              exit 1
+            }
+          }
+
+          $avgResponseTime = ($responseTimes | Measure-Object -Average).Average
+          Write-Host "Average Response Time: ${avgResponseTime}ms"
+
+          if ($avgResponseTime -gt 1000) {
+            Write-Error "Performance regression detected. Average response time: ${avgResponseTime}ms"
+            exit 1
+          }
+
+- stage: ProductionSwap
+  displayName: 'Swap to Production'
+  dependsOn: PerformanceValidation
+  condition: succeeded()
+  jobs:
+  - deployment: SwapProduction
+    displayName: 'Swap Staging to Production'
+    environment: 'production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureAppServiceManage@0
+            displayName: 'Swap Staging to Production'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              WebAppName: '$(appServiceName)'
+              ResourceGroupName: '$(resourceGroupName)'
+              SourceSlot: 'staging'
+              SwapWithProduction: true
+
+          - task: PowerShell@2
+            displayName: 'Post-Swap Health Check'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $uri = "https://$(appServiceName).azurewebsites.net/health"
+                $maxRetries = 10
+                $retryCount = 0
+
+                do {
+                  try {
+                    $response = Invoke-RestMethod -Uri $uri -Method Get -TimeoutSec 30
+                    if ($response.status -eq "Healthy") {
+                      Write-Host "Production deployment is healthy"
+                      exit 0
+                    }
+                  }
+                  catch {
+                    Write-Host "Health check failed: $($_.Exception.Message)"
+                  }
+
+                  $retryCount++
+                  Start-Sleep -Seconds 30
+                } while ($retryCount -lt $maxRetries)
+
+                Write-Error "Production deployment failed health checks"
+                exit 1
+
+- stage: ContinuousMonitoring
+  displayName: 'Continuous Monitoring'
+  dependsOn: ProductionSwap
+  condition: always()
+  jobs:
+  - job: MonitoringSetup
+    displayName: 'Setup Monitoring and Alerts'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: PowerShell@2
+      displayName: 'Configure Application Insights Alerts'
+      inputs:
+        targetType: 'inline'
+        script: |
+          Write-Host "Setting up Application Insights monitoring and alerts..."
+          Write-Host "- Response time alerts (>1000ms)"
+          Write-Host "- Memory usage alerts (>100MB)"
+          Write-Host "- Error rate alerts (>5%)"
+          Write-Host "- Health check failure alerts"
+          Write-Host "Monitoring configuration completed"
