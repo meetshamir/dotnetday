@@ -23,12 +23,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Get the script directory and set paths
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Split-Path -Parent $ScriptDir
+$ConfigPath = Join-Path $ProjectRoot "demo-config.json"
+
 # Color output functions
-function Write-Success { Write-Host "✅ $args" -ForegroundColor Green }
-function Write-Info { Write-Host "ℹ️  $args" -ForegroundColor Cyan }
-function Write-Warn { Write-Host "⚠️  $args" -ForegroundColor Yellow }
-function Write-Err { Write-Host "❌ $args" -ForegroundColor Red }
-function Write-Step { Write-Host "`n🔥 $args" -ForegroundColor Magenta }
+function Write-Success { Write-Host "[SUCCESS] $args" -ForegroundColor Green }
+function Write-Info { Write-Host "[INFO] $args" -ForegroundColor Cyan }
+function Write-Warn { Write-Host "[WARNING] $args" -ForegroundColor Yellow }
+function Write-Err { Write-Host "[ERROR] $args" -ForegroundColor Red }
+function Write-Step { Write-Host "`n[STEP] $args" -ForegroundColor Magenta }
 
 Write-Host @"
 ╔════════════════════════════════════════════════════════════════╗
@@ -40,8 +45,8 @@ Write-Host @"
 "@ -ForegroundColor Red
 
 # Load configuration from previous step
-if (Test-Path "demo-config.json") {
-    $config = Get-Content "demo-config.json" | ConvertFrom-Json
+if (Test-Path $ConfigPath) {
+    $config = Get-Content $ConfigPath | ConvertFrom-Json
     if (-not $ResourceGroupName -or $ResourceGroupName -eq "sre-perf-demo-rg") {
         $ResourceGroupName = $config.ResourceGroupName
     }
@@ -130,7 +135,7 @@ try {
     }
     
     if ($response.status -eq "Unhealthy" -or $response.status -eq "Degraded") {
-        Write-Warn "❌ Production is now $($response.status) - Performance issues detected"
+        Write-Warn "[!] Production is now $($response.status) - Performance issues detected"
     } else {
         Write-Info "Production status: $($response.status)"
     }
@@ -159,7 +164,7 @@ foreach ($endpoint in $endpoints) {
 
             if ($httpResponse.StatusCode -eq 200) {
                 $responseTimes += $responseTime
-                Write-Info "  ✓ Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms"
+                Write-Info "  [+] Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms"
 
                 if ($responseTime -gt 1000) {
                     $slowRequests++
@@ -177,7 +182,7 @@ foreach ($endpoint in $endpoints) {
 if ($responseTimes.Count -gt 0) {
     $avgResponseTime = ($responseTimes | Measure-Object -Average).Average
     Write-Host "`n================================================" -ForegroundColor Red
-    Write-Host "📊 Production Performance Test Results" -ForegroundColor Red
+    Write-Host "Production Performance Test Results" -ForegroundColor Red
     Write-Host "================================================" -ForegroundColor Red
     Write-Host "Total successful requests: $($responseTimes.Count)" -ForegroundColor White
     Write-Host "Slow requests (>1000ms): $slowRequests" -ForegroundColor White
@@ -185,7 +190,7 @@ if ($responseTimes.Count -gt 0) {
     Write-Host "" -ForegroundColor White
 
     if ($avgResponseTime -gt 1000) {
-        Write-Warn "❌ PRODUCTION PERFORMANCE DEGRADED"
+        Write-Warn "[!] PRODUCTION PERFORMANCE DEGRADED"
         Write-Warn "Average response time exceeds 1000ms threshold"
         Write-Warn "Azure Monitor alerts will fire within 5 minutes"
         Write-Warn "CPU usage should be high (>80%)"
@@ -197,21 +202,21 @@ if ($responseTimes.Count -gt 0) {
 Write-Host @"
 
 ╔════════════════════════════════════════════════════════════════╗
-║          BAD DEPLOYMENT IN PRODUCTION! ⚠️                     ║
+║          BAD DEPLOYMENT IN PRODUCTION!                         ║
 ╚════════════════════════════════════════════════════════════════╝
 
-📋 Deployment Summary
+Deployment Summary
 ─────────────────────────────────────────────────────────────────
 Resource Group:    $ResourceGroupName
 App Service Name:  $AppServiceName
 Environment:       PRODUCTION (CPU-Intensive)
 
-🌐 URLs
+URLs
 ─────────────────────────────────────────────────────────────────
 Production (DEGRADED): https://$AppServiceName.azurewebsites.net
 Health Check:          https://$AppServiceName.azurewebsites.net/health
 
-🧪 Test URLs (Production - CPU-Intensive Performance)
+Test URLs (Production - CPU-Intensive Performance)
 ─────────────────────────────────────────────────────────────────
 CPU-intensive:     https://$AppServiceName.azurewebsites.net/api/cpuintensive
 Single product:    https://$AppServiceName.azurewebsites.net/api/cpuintensive/1
@@ -220,7 +225,7 @@ Memory leak:       https://$AppServiceName.azurewebsites.net/api/cpuintensive/me
 Health check:      https://$AppServiceName.azurewebsites.net/health
 Metrics:           https://$AppServiceName.azurewebsites.net/api/featureflag/metrics
 
-📊 What to Observe
+What to Observe
 ─────────────────────────────────────────────────────────────────
 1. Azure Monitor Alerts (will fire within 5 minutes):
    - Response Time Alert (>1000ms)
@@ -240,7 +245,7 @@ Metrics:           https://$AppServiceName.azurewebsites.net/api/featureflag/met
    - Performance degradation affects all users
    - Alerts will fire due to production issues
 
-🧪 Next Steps
+Next Steps
 ─────────────────────────────────────────────────────────────────
 1. Generate load to trigger alerts:
    .\5-generate-load.ps1

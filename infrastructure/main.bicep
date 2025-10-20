@@ -176,7 +176,7 @@ resource responseTimeAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
           name: 'ResponseTime'
           metricName: 'HttpResponseTime'
           operator: 'GreaterThan'
-          threshold: 1000
+          threshold: 1
           timeAggregation: 'Average'
           criterionType: 'StaticThresholdCriterion'
         }
@@ -210,7 +210,7 @@ resource criticalResponseTimeAlert 'Microsoft.Insights/metricAlerts@2018-03-01' 
           name: 'CriticalResponseTime'
           metricName: 'HttpResponseTime'
           operator: 'GreaterThan'
-          threshold: 2000
+          threshold: 2
           timeAggregation: 'Average'
           criterionType: 'StaticThresholdCriterion'
         }

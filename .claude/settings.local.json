@@ -9,7 +9,17 @@
       "Bash(powershell -File \".\\scripts\\2-deploy-healthy-app.ps1\")",
       "Bash(powershell -Command \"Get-Content ''SREPerfDemo\\Controllers\\CpuIntensiveController.cs'' | Select-Object -Last 20\")",
       "Bash(powershell -File \".\\scripts\\3-deploy-cpu-intensive-to-staging.ps1\")",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(powershell -File \".\\scripts\\4-swap-to-production.ps1\")",
+      "Bash(powershell -File \".\\scripts\\5-generate-load.ps1\" -DurationMinutes 2)",
+      "Bash(powershell -File \".\\scripts\\5-generate-load.ps1\" -DurationMinutes 5)",
+      "Bash(az monitor metrics alert list:*)",
+      "Bash(az monitor metrics alert show:*)",
+      "Bash(az monitor activity-log:*)",
+      "Bash(az monitor app-insights metrics show:*)",
+      "Bash(az monitor metrics list-definitions:*)",
+      "Bash(az webapp list:*)",
+      "Bash(az monitor metrics alert update:*)"
     ],
     "deny": [],
     "ask": []

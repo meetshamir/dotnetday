@@ -33,12 +33,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Get the script directory and set paths
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Split-Path -Parent $ScriptDir
+$ConfigPath = Join-Path $ProjectRoot "demo-config.json"
+
 # Color output functions
-function Write-Success { Write-Host "✅ $args" -ForegroundColor Green }
-function Write-Info { Write-Host "ℹ️  $args" -ForegroundColor Cyan }
-function Write-Warn { Write-Host "⚠️  $args" -ForegroundColor Yellow }
-function Write-Err { Write-Host "❌ $args" -ForegroundColor Red }
-function Write-Step { Write-Host "`n🔥 $args" -ForegroundColor Magenta }
+function Write-Success { Write-Host "[SUCCESS] $args" -ForegroundColor Green }
+function Write-Info { Write-Host "[INFO] $args" -ForegroundColor Cyan }
+function Write-Warn { Write-Host "[WARNING] $args" -ForegroundColor Yellow }
+function Write-Err { Write-Host "[ERROR] $args" -ForegroundColor Red }
+function Write-Step { Write-Host "`n[STEP] $args" -ForegroundColor Magenta }
 
 Write-Host @"
 ╔════════════════════════════════════════════════════════════════╗
@@ -50,8 +55,8 @@ Write-Host @"
 "@ -ForegroundColor Yellow
 
 # Load configuration from previous step
-if (Test-Path "demo-config.json") {
-    $config = Get-Content "demo-config.json" | ConvertFrom-Json
+if (Test-Path $ConfigPath) {
+    $config = Get-Content $ConfigPath | ConvertFrom-Json
     if (-not $ResourceGroupName -or $ResourceGroupName -eq "sre-perf-demo-rg") {
         $ResourceGroupName = $config.ResourceGroupName
     }
@@ -181,8 +186,8 @@ function Start-LoadGeneration {
 
     # Collect results from all user tasks
     foreach ($task in $userTasks) {
-        $result = Receive-Job -Job $task
-        Remove-Job -Job $task
+        $result = Receive-Job -Job $task -Wait
+        Remove-Job -Job $task -Force
 
         $totalRequests += $result.TotalRequests
         $successfulRequests += $result.SuccessfulRequests
@@ -220,7 +225,7 @@ if ($results.ResponseTimes.Count -gt 0) {
 
 # Display results
 Write-Host "`n================================================" -ForegroundColor Yellow
-Write-Host "📊 Load Generation Results" -ForegroundColor Yellow
+Write-Host "Load Generation Results" -ForegroundColor Yellow
 Write-Host "================================================" -ForegroundColor Yellow
 Write-Host "Duration: $DurationMinutes minutes" -ForegroundColor White
 Write-Host "Concurrent Users: $ConcurrentUsers" -ForegroundColor White
@@ -239,11 +244,11 @@ Write-Host "================================================" -ForegroundColor Y
 
 # Determine if alerts should fire
 if ($avgResponseTime -gt 1000) {
-    Write-Warn "❌ PERFORMANCE DEGRADED DETECTED"
+    Write-Warn "[!] PERFORMANCE DEGRADED DETECTED"
     Write-Warn "Average response time exceeds 1000ms threshold"
     Write-Warn "Azure Monitor alerts should fire within 5 minutes"
 } elseif ($results.SlowRequests -gt 0) {
-    Write-Warn "⚠️  Some slow requests detected"
+    Write-Warn "[!] Some slow requests detected"
     Write-Warn "Alerts may fire if slow requests continue"
 } else {
     Write-Info "Performance appears acceptable"
@@ -265,10 +270,10 @@ try {
 Write-Host @"
 
 ╔════════════════════════════════════════════════════════════════╗
-║                  LOAD GENERATION COMPLETED! 🔥                ║
+║              LOAD GENERATION COMPLETED!                        ║
 ╚════════════════════════════════════════════════════════════════╝
 
-📋 Load Test Summary
+Load Test Summary
 ─────────────────────────────────────────────────────────────────
 Resource Group:    $ResourceGroupName
 App Service Name:  $AppServiceName
@@ -277,17 +282,17 @@ Concurrent Users:  $ConcurrentUsers
 Total Requests:    $($results.TotalRequests)
 Success Rate:      $([Math]::Round(($results.SuccessfulRequests / $results.TotalRequests) * 100, 2))%
 
-📊 Performance Impact
+Performance Impact
 ─────────────────────────────────────────────────────────────────
 Average Response Time: $([Math]::Round($avgResponseTime, 2))ms
 95th Percentile:        $([Math]::Round($p95ResponseTime, 2))ms
 Slow Requests (>1000ms): $($results.SlowRequests)
 
-📈 Expected Alert Behavior
+Expected Alert Behavior
 ─────────────────────────────────────────────────────────────────
 1. Azure Monitor Alerts (should fire within 5 minutes):
-   - Response Time Alert (>1000ms) - $($avgResponseTime -gt 1000 ? 'SHOULD FIRE' : 'May not fire')
-   - Critical Response Time Alert (>2000ms) - $($avgResponseTime -gt 2000 ? 'SHOULD FIRE' : 'May not fire')
+   - Response Time Alert (>1000ms) - $(if ($avgResponseTime -gt 1000) { 'SHOULD FIRE' } else { 'May not fire' })
+   - Critical Response Time Alert (>2000ms) - $(if ($avgResponseTime -gt 2000) { 'SHOULD FIRE' } else { 'May not fire' })
    - CPU Alert (>80%) - Should fire due to CPU-intensive operations
 
 2. Application Insights:
@@ -295,7 +300,7 @@ Slow Requests (>1000ms): $($results.SlowRequests)
    - High CPU usage in Live Metrics
    - Performance degradation charts
 
-🧪 Next Steps
+Next Steps
 ─────────────────────────────────────────────────────────────────
 1. Monitor SRE Agent remediation:
    .\6-monitor-sre-agent.ps1
@@ -308,7 +313,7 @@ Slow Requests (>1000ms): $($results.SlowRequests)
 
 4. Wait for SRE Agent to detect and remediate the issue
 
-📖 Documentation
+Documentation
 ─────────────────────────────────────────────────────────────────
 See DEMO-SCRIPT.md for complete demo walkthrough
 
