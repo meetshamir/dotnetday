@@ -64,6 +64,7 @@ resource appService 'Microsoft.Web/sites@2023-01-01' = {
       netFrameworkVersion: 'v9.0'
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
+      alwaysOn: true
       appSettings: [
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -108,6 +109,7 @@ resource stagingSlot 'Microsoft.Web/sites/slots@2023-01-01' = {
     serverFarmId: appServicePlan.id
     siteConfig: {
       netFrameworkVersion: 'v9.0'
+      alwaysOn: true
       appSettings: [
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -161,9 +163,10 @@ resource responseTimeAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: '${appServiceName}-response-time-alert'
   location: 'global'
   properties: {
-    description: 'Alert when average response time exceeds 1000ms threshold - indicates performance degradation'
+    description: 'Alert when average response time exceeds 1000ms threshold - indicates performance degradation. REMEDIATION: Perform deployment slot swap to restore healthy version from staging slot.'
     severity: 2
     enabled: true
+    autoMitigate: false
     scopes: [
       appService.id
     ]
@@ -195,9 +198,10 @@ resource criticalResponseTimeAlert 'Microsoft.Insights/metricAlerts@2018-03-01' 
   name: '${appServiceName}-critical-response-time-alert'
   location: 'global'
   properties: {
-    description: 'CRITICAL: Average response time exceeds 2000ms - severe performance degradation'
+    description: 'CRITICAL: Average response time exceeds 2000ms - severe performance degradation. REMEDIATION: Immediately perform deployment slot swap to restore healthy version from staging slot.'
     severity: 1
     enabled: true
+    autoMitigate: false
     scopes: [
       appService.id
     ]
@@ -229,9 +233,10 @@ resource appInsightsPerformanceAlert 'Microsoft.Insights/metricAlerts@2018-03-01
   name: '${appServiceName}-app-insights-perf-alert'
   location: 'global'
   properties: {
-    description: 'Alert on Application Insights server response time degradation'
+    description: 'Alert on Application Insights server response time degradation (>1000ms average). REMEDIATION: Perform deployment slot swap to restore healthy version from staging slot.'
     severity: 2
     enabled: true
+    autoMitigate: false
     scopes: [
       applicationInsights.id
     ]
@@ -263,9 +268,10 @@ resource cpuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: '${appServiceName}-cpu-alert'
   location: 'global'
   properties: {
-    description: 'Alert when CPU usage is high'
+    description: 'Alert when CPU usage is high (>60 seconds total CPU time in 5 minutes). REMEDIATION: Investigate CPU-intensive operations and consider deployment slot swap if degradation persists.'
     severity: 2
     enabled: true
+    autoMitigate: false
     scopes: [
       appService.id
     ]
@@ -292,9 +298,10 @@ resource memoryAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: '${appServiceName}-memory-alert'
   location: 'global'
   properties: {
-    description: 'Alert when memory usage is high'
+    description: 'Alert when memory usage is high (>1GB working set). REMEDIATION: Investigate memory leaks and consider deployment slot swap if degradation persists.'
     severity: 2
     enabled: true
+    autoMitigate: false
     scopes: [
       appService.id
     ]
@@ -314,6 +321,29 @@ resource memoryAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
       ]
     }
     actions: []
+  }
+}
+
+// Smart Detection - Failure Anomalies Alert
+resource failureAnomaliesAlert 'Microsoft.AlertsManagement/smartDetectorAlertRules@2021-04-01' = {
+  name: '${appServiceName}-failure-anomalies'
+  location: 'global'
+  properties: {
+    description: 'Smart Detection: Failure Anomalies detects unusual increases in failed request rate. REMEDIATION: Perform deployment slot swap to restore healthy version from staging slot.'
+    state: 'Enabled'
+    severity: 'Sev3'
+    frequency: 'PT1M'
+    detector: {
+      id: 'FailureAnomaliesDetector'
+    }
+    scope: [
+      applicationInsights.id
+    ]
+    actionGroups: {
+      groupIds: [
+        alertActionGroup.id
+      ]
+    }
   }
 }
 

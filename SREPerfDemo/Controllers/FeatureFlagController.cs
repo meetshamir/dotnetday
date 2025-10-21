@@ -109,4 +109,47 @@ public class FeatureFlagController : ControllerBase
             Timestamp = DateTime.UtcNow
         });
     }
+
+    [HttpGet("error-spike")]
+    public ActionResult ErrorSpike()
+    {
+        // Simulate error spike to trigger Failure Anomaly detection
+        // 85% error rate to guarantee Smart Detection fires
+        var random = Random.Shared.Next(100);
+
+        if (random < 85)
+        {
+            _logger.LogError("SIMULATED ERROR SPIKE: Intentional error for Failure Anomaly detection (random={Random})", random);
+
+            // Vary the error types to simulate realistic failure scenarios
+            if (random < 30)
+            {
+                return StatusCode(500, new {
+                    error = "Internal Server Error",
+                    message = "Database connection failed",
+                    timestamp = DateTime.UtcNow,
+                    errorCode = "DB_CONNECTION_FAILED"
+                });
+            }
+            else if (random < 60)
+            {
+                return StatusCode(503, new {
+                    error = "Service Unavailable",
+                    message = "Downstream service timeout",
+                    timestamp = DateTime.UtcNow,
+                    errorCode = "SERVICE_TIMEOUT"
+                });
+            }
+            else
+            {
+                throw new InvalidOperationException("Simulated unhandled exception for failure anomaly detection");
+            }
+        }
+
+        return Ok(new {
+            message = "Success",
+            timestamp = DateTime.UtcNow,
+            note = "This endpoint randomly generates errors to trigger Smart Detection"
+        });
+    }
 }

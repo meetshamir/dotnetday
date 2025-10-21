@@ -87,6 +87,7 @@ $endpoints = @(
     "/api/cpuintensive/3",
     "/api/cpuintensive/search?query=test",
     "/api/cpuintensive/cpu-stress",
+    "/api/featureflag/error-spike",  # NEW: Error spike endpoint to trigger Failure Anomalies
     "/health",
     "/api/featureflag/metrics"
 )
@@ -295,10 +296,15 @@ Expected Alert Behavior
    - Critical Response Time Alert (>2000ms) - $(if ($avgResponseTime -gt 2000) { 'SHOULD FIRE' } else { 'May not fire' })
    - CPU Alert (>80%) - Should fire due to CPU-intensive operations
 
-2. Application Insights:
+2. Smart Detection / Failure Anomalies (should fire within 3-5 minutes):
+   - Error rate spike detected (85% error rate from error-spike endpoint)
+   - Failure Anomalies alert will appear in Alerts section
+
+3. Application Insights:
    - High response times in Performance tab
    - High CPU usage in Live Metrics
    - Performance degradation charts
+   - Error spike visible in Failures tab
 
 Next Steps
 ─────────────────────────────────────────────────────────────────

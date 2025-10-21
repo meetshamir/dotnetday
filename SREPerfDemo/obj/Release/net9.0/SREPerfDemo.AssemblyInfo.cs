@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SREPerfDemo")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+77f622ce660d9e483a0af854179fbdfecafd1e8e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f60dedd76e43e4436cd71b41649eb8bd01144006")]
 [assembly: System.Reflection.AssemblyProductAttribute("SREPerfDemo")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SREPerfDemo")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

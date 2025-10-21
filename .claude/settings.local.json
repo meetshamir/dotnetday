@@ -19,7 +19,14 @@
       "Bash(az monitor app-insights metrics show:*)",
       "Bash(az monitor metrics list-definitions:*)",
       "Bash(az webapp list:*)",
-      "Bash(az monitor metrics alert update:*)"
+      "Bash(az monitor metrics alert update:*)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \".\\scripts\\2-deploy-healthy-app.ps1\")",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \".\\scripts\\3-deploy-cpu-intensive-to-staging.ps1\")",
+      "Bash(az monitor app-insights component show:*)",
+      "Bash(dotnet build:*)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \".\\scripts\\4-swap-to-production.ps1\")",
+      "Bash(az monitor smart-detector alert list:*)",
+      "Bash(az resource list:*)"
     ],
     "deny": [],
     "ask": []
