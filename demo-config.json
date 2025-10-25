@@ -1,9 +1,9 @@
 ﻿{
-    "ApplicationInsightsKey":  "20aa39c4-7a57-40dc-872a-079f4e7bdc0e",
-    "StagingUrl":  "https://sre-perf-demo-app-974-staging.azurewebsites.net",
-    "AppServiceName":  "sre-perf-demo-app-974",
+    "ApplicationInsightsKey":  "8f3c7d81-1989-432c-a2ca-bf18790dc2bf",
+    "StagingUrl":  "https://sre-perf-demo-app-937-staging.azurewebsites.net",
+    "AppServiceName":  "sre-perf-demo-app-937",
     "ResourceGroupName":  "sre-perf-demo-rg",
-    "ProductionUrl":  "https://sre-perf-demo-app-974.azurewebsites.net",
+    "ProductionUrl":  "https://sre-perf-demo-app-937.azurewebsites.net",
     "Location":  "eastus",
-    "DeploymentTime":  "2025-10-21 00:07:42"
+    "DeploymentTime":  "2025-10-21 15:28:16"
 }
