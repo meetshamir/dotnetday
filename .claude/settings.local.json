@@ -27,7 +27,10 @@
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \".\\scripts\\4-swap-to-production.ps1\")",
       "Bash(az monitor smart-detector alert list:*)",
       "Bash(az resource list:*)",
-      "Bash(powershell -Command \"if (Test-Path ''bin'') { Remove-Item -Path ''bin'' -Recurse -Force }; if (Test-Path ''obj'') { Remove-Item -Path ''obj'' -Recurse -Force }; if (Test-Path ''publish'') { Remove-Item -Path ''publish'' -Recurse -Force }; if (Test-Path ''*.zip'') { Remove-Item -Path ''*.zip'' -Force }\")"
+      "Bash(powershell -Command \"if (Test-Path ''bin'') { Remove-Item -Path ''bin'' -Recurse -Force }; if (Test-Path ''obj'') { Remove-Item -Path ''obj'' -Recurse -Force }; if (Test-Path ''publish'') { Remove-Item -Path ''publish'' -Recurse -Force }; if (Test-Path ''*.zip'') { Remove-Item -Path ''*.zip'' -Force }\")",
+      "Bash(az group list:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
