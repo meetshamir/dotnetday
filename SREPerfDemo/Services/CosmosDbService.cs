@@ -42,7 +42,7 @@ public class CosmosDbService
 
             while (iterator.HasMoreResults)
             {
-                var response = await iterator.ReadNextAsync();
+                var response = await iterator.ReadNextAsync().ConfigureAwait(false);
                 products.AddRange(response);
                 totalRu += response.RequestCharge;
             }
@@ -91,7 +91,7 @@ public class CosmosDbService
 
         try
         {
-            var response = await _container.ReadItemAsync<CosmosProduct>(id, new PartitionKey(category));
+            var response = await _container.ReadItemAsync<CosmosProduct>(id, new PartitionKey(category)).ConfigureAwait(false);
             requestCharge = response.RequestCharge;
             stopwatch.Stop();
             
@@ -150,7 +150,7 @@ public class CosmosDbService
 
             while (iterator.HasMoreResults)
             {
-                var response = await iterator.ReadNextAsync();
+                var response = await iterator.ReadNextAsync().ConfigureAwait(false);
                 products.AddRange(response);
                 totalRu += response.RequestCharge;
             }
@@ -201,7 +201,7 @@ public class CosmosDbService
                 product.Id = Guid.NewGuid().ToString();
             }
 
-            var response = await _container.CreateItemAsync(product, new PartitionKey(product.Category));
+            var response = await _container.CreateItemAsync(product, new PartitionKey(product.Category)).ConfigureAwait(false);
             requestCharge = response.RequestCharge;
             stopwatch.Stop();
             
@@ -265,7 +265,7 @@ public class CosmosDbService
 
             while (iterator.HasMoreResults)
             {
-                var response = await iterator.ReadNextAsync();
+                var response = await iterator.ReadNextAsync().ConfigureAwait(false);
                 results.AddRange(response);
                 totalRu += response.RequestCharge;
                 itemCount += response.Count;
@@ -327,7 +327,7 @@ public class CosmosDbService
 
             try
             {
-                await _container.CreateItemAsync(product, new PartitionKey(product.Category));
+                await _container.CreateItemAsync(product, new PartitionKey(product.Category)).ConfigureAwait(false);
                 created++;
             }
             catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
@@ -338,7 +338,7 @@ public class CosmosDbService
             {
                 // Throttled, wait and continue
                 _logger.LogWarning("Throttled during seeding, waiting...");
-                await Task.Delay(1000);
+                await Task.Delay(1000).ConfigureAwait(false);
                 i--; // Retry this item
             }
         }

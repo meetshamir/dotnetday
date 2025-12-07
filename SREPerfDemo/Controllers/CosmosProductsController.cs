@@ -32,7 +32,7 @@ public class CosmosProductsController : ControllerBase
     {
         try
         {
-            var products = await _cosmosDbService.GetAllProductsAsync();
+            var products = await _cosmosDbService.GetAllProductsAsync().ConfigureAwait(false);
             return Ok(products);
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
@@ -55,7 +55,7 @@ public class CosmosProductsController : ControllerBase
     {
         try
         {
-            var product = await _cosmosDbService.GetProductByIdAsync(id, category);
+            var product = await _cosmosDbService.GetProductByIdAsync(id, category).ConfigureAwait(false);
             if (product == null)
             {
                 return NotFound(new { error = "Product not found", id });
@@ -82,7 +82,7 @@ public class CosmosProductsController : ControllerBase
     {
         try
         {
-            var products = await _cosmosDbService.SearchProductsAsync(query);
+            var products = await _cosmosDbService.SearchProductsAsync(query).ConfigureAwait(false);
             return Ok(new { query, count = products.Count, products });
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
@@ -105,7 +105,7 @@ public class CosmosProductsController : ControllerBase
     {
         try
         {
-            var created = await _cosmosDbService.CreateProductAsync(product);
+            var created = await _cosmosDbService.CreateProductAsync(product).ConfigureAwait(false);
             return CreatedAtAction(nameof(GetProductById), new { id = created.Id }, created);
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
@@ -128,7 +128,7 @@ public class CosmosProductsController : ControllerBase
     {
         try
         {
-            var result = await _cosmosDbService.RunExpensiveQueryAsync();
+            var result = await _cosmosDbService.RunExpensiveQueryAsync().ConfigureAwait(false);
             return Ok(result);
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
@@ -149,9 +149,7 @@ public class CosmosProductsController : ControllerBase
     [HttpPost("black-friday")]
     public async Task<IActionResult> SimulateBlackFriday([FromQuery] int requests = 100)
     {
-        var results = new { succeeded = 0, throttled = 0, errors = 0, totalRu = 0.0 };
         int succeeded = 0, throttled = 0, errors = 0;
-        double totalRu = 0;
 
         _logger.LogWarning("BLACK FRIDAY SIMULATION: Starting {Count} rapid requests", requests);
 
@@ -160,7 +158,7 @@ public class CosmosProductsController : ControllerBase
         {
             try
             {
-                var products = await _cosmosDbService.GetAllProductsAsync();
+                var products = await _cosmosDbService.GetAllProductsAsync().ConfigureAwait(false);
                 Interlocked.Increment(ref succeeded);
             }
             catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
@@ -174,7 +172,7 @@ public class CosmosProductsController : ControllerBase
             }
         });
 
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
 
         var snapshot = _metrics.GetSnapshot();
         
@@ -246,7 +244,7 @@ public class CosmosProductsController : ControllerBase
     {
         try
         {
-            var created = await _cosmosDbService.SeedDataAsync(count);
+            var created = await _cosmosDbService.SeedDataAsync(count).ConfigureAwait(false);
             return Ok(new { message = $"Seeded {created} products", count = created });
         }
         catch (Exception ex)
