@@ -1,0 +1,28 @@
+﻿{
+    "properties":  {
+                       "windowSize":  "PT1M",
+                       "criteria":  {
+                                        "allOf":  [
+                                                      {
+                                                          "query":  "customEvents | where name == \u0027SlotSwapCompleted\u0027",
+                                                          "operator":  "GreaterThan",
+                                                          "threshold":  0,
+                                                          "timeAggregation":  "Count",
+                                                          "failingPeriods":  {
+                                                                                 "minFailingPeriodsToAlert":  1,
+                                                                                 "numberOfEvaluationPeriods":  1
+                                                                             }
+                                                      }
+                                                  ]
+                                    },
+                       "displayName":  "Slot Swap Sev2 Alert",
+                       "description":  "Sev2 alert for slot swap events",
+                       "scopes":  [
+                                      "/subscriptions/e964602f-6afc-4cc7-ba6b-3a796008e254/resourceGroups/sre-perf-demo-rg/providers/microsoft.insights/components/sre-perf-demo-app-3198-ai"
+                                  ],
+                       "severity":  2,
+                       "enabled":  true,
+                       "evaluationFrequency":  "PT1M"
+                   },
+    "location":  "westus2"
+}

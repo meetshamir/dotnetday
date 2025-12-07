@@ -6,7 +6,7 @@
     This script deploys the application with CPU-intensive operations to the STAGING slot only.
     It demonstrates what happens when CPU-intensive code causes performance degradation.
 .PARAMETER ResourceGroupName
-    Name of the Azure resource group (default: sre-perf-demo-rg)
+    Name of the Azure resource group (default: dotnet-day-demo)
 .PARAMETER AppServiceName
     Name of the App Service (must match the production deployment)
 .EXAMPLE
@@ -15,11 +15,37 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ResourceGroupName = "sre-perf-demo-rg",
+    [ValidateSet("1", "2", "both")]
+    [string]$AppChoice = "",
+
+    [Parameter(Mandatory=$false)]
+    [string]$ResourceGroupName = "dotnet-day-demo",
 
     [Parameter(Mandatory=$false)]
     [string]$AppServiceName = ""
 )
+
+# App choice mapping
+$AppMap = @{
+    "1" = @{ Name = "sre-perf-demo-app-3198"; ResourceGroup = "sre-perf-demo-rg" }
+    "2" = @{ Name = "sre-perf-demo-app-7380"; ResourceGroup = "dotnet-day-demo" }
+}
+
+# Determine which apps to process
+if ($AppChoice -eq "both") {
+    $appsToProcess = @("1", "2")
+} elseif ($AppChoice) {
+    $appsToProcess = @($AppChoice)
+} else {
+    $appsToProcess = @()
+}
+
+# If AppChoice is provided (not 'both'), use it to set AppServiceName and ResourceGroupName
+if ($AppChoice -and $AppChoice -ne "both") {
+    $AppServiceName = $AppMap[$AppChoice].Name
+    $ResourceGroupName = $AppMap[$AppChoice].ResourceGroup
+    Write-Host "Using App Choice $AppChoice`: $AppServiceName in $ResourceGroupName" -ForegroundColor Cyan
+}
 
 $ErrorActionPreference = "Stop"
 
@@ -47,7 +73,7 @@ Write-Host @"
 # Load configuration from previous step
 if (Test-Path $ConfigPath) {
     $config = Get-Content $ConfigPath | ConvertFrom-Json
-    if (-not $ResourceGroupName -or $ResourceGroupName -eq "sre-perf-demo-rg") {
+    if (-not $ResourceGroupName -or $ResourceGroupName -eq "dotnet-day-demo") {
         $ResourceGroupName = $config.ResourceGroupName
     }
     if (-not $AppServiceName) {

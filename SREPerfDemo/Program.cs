@@ -1,5 +1,8 @@
 using System.Diagnostics;
+using Azure.Identity;
+using Microsoft.Azure.Cosmos;
 using SREPerfDemo;
+using SREPerfDemo.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,9 +12,47 @@ builder.Services.AddOpenApi();
 // Add Application Insights
 builder.Services.AddApplicationInsightsTelemetry();
 
+// Add Cosmos DB
+var cosmosEndpoint = builder.Configuration["CosmosDb:Endpoint"];
+var cosmosKey = builder.Configuration["CosmosDb:AccountKey"];
+var useEntraAuth = builder.Configuration.GetValue<bool>("CosmosDb:UseEntraAuth", false);
+
+if (!string.IsNullOrEmpty(cosmosEndpoint))
+{
+    builder.Services.AddSingleton(sp =>
+    {
+        var cosmosClientOptions = new CosmosClientOptions
+        {
+            ApplicationName = "SREPerfDemo",
+            // Disable automatic retries to make throttling visible in demo
+            MaxRetryAttemptsOnRateLimitedRequests = 0,
+            MaxRetryWaitTimeOnRateLimitedRequests = TimeSpan.FromSeconds(0)
+        };
+
+        if (useEntraAuth)
+        {
+            // Use Managed Identity / Entra ID authentication
+            var credential = new DefaultAzureCredential();
+            return new CosmosClient(cosmosEndpoint, credential, cosmosClientOptions);
+        }
+        else if (!string.IsNullOrEmpty(cosmosKey))
+        {
+            // Use key-based authentication (for local development)
+            return new CosmosClient(cosmosEndpoint, cosmosKey, cosmosClientOptions);
+        }
+        else
+        {
+            throw new InvalidOperationException("Cosmos DB authentication not configured. Set either CosmosDb:AccountKey or CosmosDb:UseEntraAuth=true");
+        }
+    });
+    builder.Services.AddSingleton<CosmosDbMetrics>();
+    builder.Services.AddSingleton<CosmosDbService>();
+}
+
 // Add health checks with custom performance checks
 builder.Services.AddHealthChecks()
     .AddCheck<PerformanceHealthCheck>("performance")
+    .AddCheck<CosmosDbHealthCheck>("cosmosdb")
     .AddCheck("memory", () =>
     {
         var memoryUsage = GC.GetTotalMemory(false);

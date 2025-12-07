@@ -1,0 +1,31 @@
+﻿{
+    "properties":  {
+                       "scopes":  [
+                                      "/subscriptions/e964602f-6afc-4cc7-ba6b-3a796008e254/resourceGroups/sre-perf-demo-rg"
+                                  ],
+                       "description":  "Fires instantly when a slot swap occurs",
+                       "condition":  {
+                                         "allOf":  [
+                                                       {
+                                                           "equals":  "Administrative",
+                                                           "field":  "category"
+                                                       },
+                                                       {
+                                                           "equals":  "Microsoft.Web/sites/slots/slotsswap/action",
+                                                           "field":  "operationName"
+                                                       },
+                                                       {
+                                                           "equals":  "Succeeded",
+                                                           "field":  "status"
+                                                       }
+                                                   ]
+                                     },
+                       "actions":  {
+                                       "actionGroups":  [
+
+                                                        ]
+                                   },
+                       "enabled":  true
+                   },
+    "location":  "global"
+}

@@ -6,7 +6,7 @@
     This script swaps the staging slot (with CPU-intensive operations) to production.
     This simulates a bad deployment that reaches production and causes performance issues.
 .PARAMETER ResourceGroupName
-    Name of the Azure resource group (default: sre-perf-demo-rg)
+    Name of the Azure resource group (default: dotnet-day-demo)
 .PARAMETER AppServiceName
     Name of the App Service (must match the production deployment)
 .EXAMPLE
@@ -15,11 +15,37 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ResourceGroupName = "sre-perf-demo-rg",
+    [ValidateSet("1", "2", "both")]
+    [string]$AppChoice = "",
+
+    [Parameter(Mandatory=$false)]
+    [string]$ResourceGroupName = "dotnet-day-demo",
 
     [Parameter(Mandatory=$false)]
     [string]$AppServiceName = ""
 )
+
+# App choice mapping
+$AppMap = @{
+    "1" = @{ Name = "sre-perf-demo-app-3198"; ResourceGroup = "sre-perf-demo-rg" }
+    "2" = @{ Name = "sre-perf-demo-app-7380"; ResourceGroup = "dotnet-day-demo" }
+}
+
+# Determine which apps to process
+if ($AppChoice -eq "both") {
+    $appsToProcess = @("1", "2")
+} elseif ($AppChoice) {
+    $appsToProcess = @($AppChoice)
+} else {
+    $appsToProcess = @()
+}
+
+# If AppChoice is provided (not 'both'), use it to set AppServiceName and ResourceGroupName
+if ($AppChoice -and $AppChoice -ne "both") {
+    $AppServiceName = $AppMap[$AppChoice].Name
+    $ResourceGroupName = $AppMap[$AppChoice].ResourceGroup
+    Write-Host "Using App Choice $AppChoice`: $AppServiceName in $ResourceGroupName" -ForegroundColor Cyan
+}
 
 $ErrorActionPreference = "Stop"
 
@@ -47,7 +73,7 @@ Write-Host @"
 # Load configuration from previous step
 if (Test-Path $ConfigPath) {
     $config = Get-Content $ConfigPath | ConvertFrom-Json
-    if (-not $ResourceGroupName -or $ResourceGroupName -eq "sre-perf-demo-rg") {
+    if (-not $ResourceGroupName -or $ResourceGroupName -eq "dotnet-day-demo") {
         $ResourceGroupName = $config.ResourceGroupName
     }
     if (-not $AppServiceName) {
@@ -113,6 +139,35 @@ az webapp deployment slot swap `
 if ($LASTEXITCODE -eq 0) {
     Write-Success "Slot swap completed successfully"
     Write-Warn "CPU-intensive version is now in PRODUCTION"
+    
+    # Send custom event to App Insights to trigger Sev3 alert immediately
+    Write-Step "Sending Swap Event to App Insights"
+    try {
+        $instrumentationKey = "3c1500ca-855c-4ef6-9393-bdf5275ca290"
+        $eventBody = @{
+            name = "Microsoft.ApplicationInsights.$instrumentationKey.Event"
+            time = (Get-Date).ToUniversalTime().ToString("o")
+            iKey = $instrumentationKey
+            data = @{
+                baseType = "EventData"
+                baseData = @{
+                    ver = 2
+                    name = "SlotSwapCompleted"
+                    properties = @{
+                        AppName = $AppServiceName
+                        ResourceGroup = $ResourceGroupName
+                        SwapType = "staging-to-production"
+                        Timestamp = (Get-Date).ToString("o")
+                    }
+                }
+            }
+        } | ConvertTo-Json -Depth 10
+        
+        $result = Invoke-RestMethod -Uri "https://dc.services.visualstudio.com/v2/track" -Method Post -Body $eventBody -ContentType "application/json"
+        Write-Success "Swap event sent to App Insights (Sev3 alert will fire within 1-2 minutes)"
+    } catch {
+        Write-Warn "Could not send swap event to App Insights: $_"
+    }
 } else {
     Write-Err "Slot swap failed"
     exit 1
@@ -145,9 +200,10 @@ try {
 
 # Performance test on production
 Write-Step "Running Performance Tests on Production"
-Write-Info "Testing production endpoints (expect degraded performance)..."
+Write-Info "Testing production /api/products endpoints (expect degraded performance after swap)..."
 
-$endpoints = @("/api/cpuintensive", "/api/cpuintensive/1")
+# Test the SAME endpoints that were fast before - now they should be slow
+$endpoints = @("/api/products", "/api/products/1", "/api/products/search?query=electronics")
 $responseTimes = @()
 $slowRequests = 0
 
@@ -158,17 +214,23 @@ foreach ($endpoint in $endpoints) {
 
         $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         try {
-            $httpResponse = Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 30
+            $httpResponse = Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 60
             $stopwatch.Stop()
             $responseTime = $stopwatch.ElapsedMilliseconds
 
             if ($httpResponse.StatusCode -eq 200) {
                 $responseTimes += $responseTime
-                Write-Info "  [+] Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms"
-
-                if ($responseTime -gt 1000) {
+                
+                if ($responseTime -gt 2000) {
+                    Write-Host "  [+] Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms" -ForegroundColor Red -NoNewline
+                    Write-Host " CRITICAL" -ForegroundColor Red
                     $slowRequests++
-                    Write-Warn "  SLOW response detected: ${responseTime}ms"
+                } elseif ($responseTime -gt 1000) {
+                    Write-Host "  [+] Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms" -ForegroundColor Yellow -NoNewline
+                    Write-Host " SLOW" -ForegroundColor Yellow
+                    $slowRequests++
+                } else {
+                    Write-Host "  [+] Response: $($httpResponse.StatusCode) - Time: ${responseTime}ms" -ForegroundColor Green
                 }
             }
         } catch {
@@ -209,46 +271,53 @@ Deployment Summary
 ─────────────────────────────────────────────────────────────────
 Resource Group:    $ResourceGroupName
 App Service Name:  $AppServiceName
-Environment:       PRODUCTION (CPU-Intensive)
+Environment:       PRODUCTION (Slow Products API)
+
+What Changed?
+─────────────────────────────────────────────────────────────────
+The SAME /api/products endpoints are now SLOW because:
+  ✗ N+1 query pattern (20 individual lookups vs 1 batch)
+  ✗ Missing database index (full table scan)
+  ✗ CPU-intensive "security validation" added by mistake
+
+This is REALISTIC - same endpoints, degraded performance!
 
 URLs
 ─────────────────────────────────────────────────────────────────
 Production (DEGRADED): https://$AppServiceName.azurewebsites.net
 Health Check:          https://$AppServiceName.azurewebsites.net/health
 
-Test URLs (Production - CPU-Intensive Performance)
+Test URLs (Same endpoints - now SLOW)
 ─────────────────────────────────────────────────────────────────
-CPU-intensive:     https://$AppServiceName.azurewebsites.net/api/cpuintensive
-Single product:    https://$AppServiceName.azurewebsites.net/api/cpuintensive/1
-CPU stress test:   https://$AppServiceName.azurewebsites.net/api/cpuintensive/cpu-stress
-Memory leak:       https://$AppServiceName.azurewebsites.net/api/cpuintensive/memory-cpu-leak
-Health check:      https://$AppServiceName.azurewebsites.net/health
-Metrics:           https://$AppServiceName.azurewebsites.net/api/featureflag/metrics
+Products List:     https://$AppServiceName.azurewebsites.net/api/products
+Single Product:    https://$AppServiceName.azurewebsites.net/api/products/1
+Search Products:   https://$AppServiceName.azurewebsites.net/api/products/search?query=electronics
+Health Check:      https://$AppServiceName.azurewebsites.net/health
 
 What to Observe
 ─────────────────────────────────────────────────────────────────
 1. Azure Monitor Alerts (will fire within 5 minutes):
-   - Response Time Alert (>1000ms)
+   - Response Time Alert (>1000ms) on /api/products
    - Critical Response Time Alert (>2000ms)
    - CPU Alert (>80%)
 
 2. Application Insights:
-   - High response times in Performance tab
-   - High CPU usage in Live Metrics
-   - Performance degradation charts
+   - High response times in Performance tab for /api/products
+   - Same endpoint name, different performance characteristics
+   - Before/after comparison visible in charts
 
 3. Health Endpoint Status:
    - Will report "Degraded" or "Unhealthy"
 
 4. Production Impact:
-   - Production now has CPU-intensive operations
-   - Performance degradation affects all users
-   - Alerts will fire due to production issues
+   - ALL /api/products calls are now slow
+   - Same API contract, degraded performance
+   - Real-world scenario: developer removed query optimization
 
 Next Steps
 ─────────────────────────────────────────────────────────────────
 1. Generate load to trigger alerts:
-   .\5-generate-load.ps1
+   .\5-generate-load.ps1 -AppChoice 1 -EndpointMode healthy
 
 2. Monitor SRE Agent remediation:
    .\6-monitor-sre-agent.ps1

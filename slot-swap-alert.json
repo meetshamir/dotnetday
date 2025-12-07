@@ -1,0 +1,33 @@
+﻿{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "resources": [
+        {
+            "type": "Microsoft.Insights/scheduledQueryRules",
+            "apiVersion": "2021-08-01",
+            "name": "slot-swap-sev3-alert",
+            "location": "westus2",
+            "properties": {
+                "displayName": "Slot Swap Sev3 Alert",
+                "description": "Sev3: Fires immediately when a slot swap deployment occurs",
+                "severity": 3,
+                "enabled": true,
+                "evaluationFrequency": "PT1M",
+                "scopes": [
+                    "/subscriptions/e964602f-6afc-4cc7-ba6b-3a796008e254/resourceGroups/sre-perf-demo-rg/providers/Microsoft.OperationalInsights/workspaces/sre-perf-demo-workspace"
+                ],
+                "windowSize": "PT5M",
+                "criteria": {
+                    "allOf": [
+                        {
+                            "query": "AzureActivity | where OperationNameValue =~ 'MICROSOFT.WEB/SITES/SLOTS/SLOTSSWAP/ACTION' and ActivityStatusValue == 'Success'",
+                            "timeAggregation": "Count",
+                            "operator": "GreaterThan",
+                            "threshold": 0
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

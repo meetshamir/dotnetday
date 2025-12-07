@@ -6,18 +6,18 @@
     This script deploys the Azure infrastructure including App Service, Application Insights, and monitoring alerts.
     It's the first step in the demo sequence.
 .PARAMETER ResourceGroupName
-    Name of the Azure resource group (default: sre-perf-demo-rg)
+    Name of the Azure resource group (default: dotnet-day-demo)
 .PARAMETER Location
     Azure region for deployment (default: eastus)
 .PARAMETER AppServiceName
     Name of the App Service (must be globally unique)
 .EXAMPLE
-    .\1-deploy-infrastructure.ps1 -ResourceGroupName "sre-perf-demo-rg" -Location "eastus"
+    .\1-deploy-infrastructure.ps1 -ResourceGroupName "dotnet-day-demo" -Location "eastus"
 #>
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ResourceGroupName = "sre-perf-demo-rg",
+    [string]$ResourceGroupName = "dotnet-day-demo",
 
     [Parameter(Mandatory=$false)]
     [string]$Location = "eastus",

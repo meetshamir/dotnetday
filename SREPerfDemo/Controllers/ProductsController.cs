@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace SREPerfDemo.Controllers;
 
@@ -7,60 +8,136 @@ namespace SREPerfDemo.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly ILogger<ProductsController> _logger;
+    private readonly IConfiguration _configuration;
     private static readonly List<Product> Products = GenerateProducts();
 
-    public ProductsController(ILogger<ProductsController> logger)
+    public ProductsController(ILogger<ProductsController> logger, IConfiguration configuration)
     {
         _logger = logger;
+        _configuration = configuration;
     }
+    
+    private bool EnableSlowEndpoints => _configuration.GetValue<bool>("PerformanceSettings:EnableSlowEndpoints");
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
     {
-        _logger.LogInformation("Getting all products");
+        _logger.LogInformation("Getting all products (SlowMode: {SlowMode})", EnableSlowEndpoints);
 
-        // Simulate fast database query with minimal processing
-        await Task.Delay(Random.Shared.Next(10, 50)); // 10-50ms delay
-
-        return Ok(Products.Take(20)); // Return first 20 products
+        if (EnableSlowEndpoints)
+        {
+            // BAD DEPLOYMENT: Inefficient N+1 query pattern with CPU-intensive processing
+            // This simulates a developer accidentally removing query optimization
+            var result = new List<Product>();
+            foreach (var product in Products.Take(20))
+            {
+                // Simulate inefficient individual lookups instead of batch query
+                await Task.Delay(Random.Shared.Next(50, 150)); // Each item takes 50-150ms
+                
+                // CPU-intensive "validation" that was added in bad deployment
+                PerformExpensiveValidation(product);
+                result.Add(product);
+            }
+            return Ok(result);
+        }
+        else
+        {
+            // HEALTHY: Optimized batch query with caching
+            await Task.Delay(Random.Shared.Next(10, 50)); // 10-50ms delay
+            return Ok(Products.Take(20));
+        }
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Product>> GetProduct(int id)
     {
-        _logger.LogInformation("Getting product {ProductId}", id);
+        _logger.LogInformation("Getting product {ProductId} (SlowMode: {SlowMode})", id, EnableSlowEndpoints);
 
-        // Simulate fast database lookup
-        await Task.Delay(Random.Shared.Next(5, 25)); // 5-25ms delay
-
-        var product = Products.FirstOrDefault(p => p.Id == id);
-        if (product == null)
+        if (EnableSlowEndpoints)
         {
+            // BAD DEPLOYMENT: Missing index, full table scan simulation
+            await Task.Delay(Random.Shared.Next(200, 500)); // 200-500ms delay
+            
+            // Expensive "security check" added in bad deployment
+            foreach (var p in Products)
+            {
+                PerformExpensiveValidation(p);
+                if (p.Id == id)
+                {
+                    return Ok(p);
+                }
+            }
             return NotFound();
         }
-
-        return Ok(product);
+        else
+        {
+            // HEALTHY: Indexed lookup
+            await Task.Delay(Random.Shared.Next(5, 25)); // 5-25ms delay
+            var product = Products.FirstOrDefault(p => p.Id == id);
+            if (product == null)
+            {
+                return NotFound();
+            }
+            return Ok(product);
+        }
     }
 
     [HttpGet("search")]
     public async Task<ActionResult<IEnumerable<Product>>> SearchProducts([FromQuery] string query)
     {
-        _logger.LogInformation("Searching products with query: {Query}", query);
+        _logger.LogInformation("Searching products with query: {Query} (SlowMode: {SlowMode})", query, EnableSlowEndpoints);
 
-        // Simulate efficient search with indexing
-        await Task.Delay(Random.Shared.Next(20, 100)); // 20-100ms delay
-
-        if (string.IsNullOrWhiteSpace(query))
+        if (EnableSlowEndpoints)
         {
-            return Ok(Products.Take(10));
+            // BAD DEPLOYMENT: Removed search index, doing full text scan with regex
+            await Task.Delay(Random.Shared.Next(500, 1500)); // 500-1500ms delay
+            
+            // CPU-intensive search without optimization
+            var results = new List<Product>();
+            foreach (var p in Products)
+            {
+                PerformExpensiveValidation(p);
+                if (string.IsNullOrWhiteSpace(query) || 
+                    p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    p.Category.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    results.Add(p);
+                    if (results.Count >= 10) break;
+                }
+            }
+            return Ok(results);
         }
+        else
+        {
+            // HEALTHY: Indexed search
+            await Task.Delay(Random.Shared.Next(20, 100)); // 20-100ms delay
 
-        var results = Products
-            .Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                       p.Category.Contains(query, StringComparison.OrdinalIgnoreCase))
-            .Take(10);
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return Ok(Products.Take(10));
+            }
 
-        return Ok(results);
+            var results = Products
+                .Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                           p.Category.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .Take(10);
+
+            return Ok(results);
+        }
+    }
+
+    /// <summary>
+    /// Simulates an expensive validation that was added in a bad deployment
+    /// This represents a developer adding "security checks" without considering performance
+    /// </summary>
+    private void PerformExpensiveValidation(Product product)
+    {
+        // CPU-intensive operations that simulate a poorly optimized validation
+        for (int i = 0; i < 100000; i++)
+        {
+            var hash = $"{product.Name}_{product.Id}_{i}".GetHashCode();
+            var check = Math.Sqrt(hash) * Math.Sin(i);
+        }
     }
 
     private static List<Product> GenerateProducts()

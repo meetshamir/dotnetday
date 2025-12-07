@@ -6,7 +6,7 @@
     This script deploys the healthy version of the application to the production slot.
     It demonstrates normal, fast performance with response times of 10-100ms.
 .PARAMETER ResourceGroupName
-    Name of the Azure resource group (default: sre-perf-demo-rg)
+    Name of the Azure resource group (default: dotnet-day-demo)
 .PARAMETER AppServiceName
     Name of the App Service (must match infrastructure deployment)
 .EXAMPLE
@@ -15,7 +15,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ResourceGroupName = "sre-perf-demo-rg",
+    [string]$ResourceGroupName = "dotnet-day-demo",
 
     [Parameter(Mandatory=$false)]
     [string]$AppServiceName = ""
@@ -47,7 +47,7 @@ Write-Host @"
 # Load configuration from previous step
 if (Test-Path $ConfigPath) {
     $config = Get-Content $ConfigPath | ConvertFrom-Json
-    if (-not $ResourceGroupName -or $ResourceGroupName -eq "sre-perf-demo-rg") {
+    if (-not $ResourceGroupName -or $ResourceGroupName -eq "dotnet-day-demo") {
         $ResourceGroupName = $config.ResourceGroupName
     }
     if (-not $AppServiceName) {

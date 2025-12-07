@@ -6,7 +6,7 @@
     This script generates load on the application to trigger performance degradation
     and cause Azure Monitor alerts to fire. It simulates real user traffic.
 .PARAMETER ResourceGroupName
-    Name of the Azure resource group (default: sre-perf-demo-rg)
+    Name of the Azure resource group (default: dotnet-day-demo)
 .PARAMETER AppServiceName
     Name of the App Service (must match the production deployment)
 .PARAMETER DurationMinutes
@@ -19,7 +19,19 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ResourceGroupName = "sre-perf-demo-rg",
+    [ValidateSet("1", "2", "both")]
+    [string]$AppChoice = "",
+
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("production", "staging", "prod", "stage")]
+    [string]$Slot = "production",
+
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("healthy", "stress", "all")]
+    [string]$EndpointMode = "all",
+
+    [Parameter(Mandatory=$false)]
+    [string]$ResourceGroupName = "dotnet-day-demo",
 
     [Parameter(Mandatory=$false)]
     [string]$AppServiceName = "",
@@ -30,6 +42,28 @@ param(
     [Parameter(Mandatory=$false)]
     [int]$ConcurrentUsers = 5
 )
+
+# App choice mapping
+$AppMap = @{
+    "1" = @{ Name = "sre-perf-demo-app-3198"; ResourceGroup = "sre-perf-demo-rg" }
+    "2" = @{ Name = "sre-perf-demo-app-7380"; ResourceGroup = "dotnet-day-demo" }
+}
+
+# Determine which apps to process
+if ($AppChoice -eq "both") {
+    $appsToProcess = @("1", "2")
+} elseif ($AppChoice) {
+    $appsToProcess = @($AppChoice)
+} else {
+    $appsToProcess = @()
+}
+
+# If AppChoice is provided (not 'both'), use it to set AppServiceName and ResourceGroupName
+if ($AppChoice -and $AppChoice -ne "both") {
+    $AppServiceName = $AppMap[$AppChoice].Name
+    $ResourceGroupName = $AppMap[$AppChoice].ResourceGroup
+    Write-Host "Using App Choice $AppChoice`: $AppServiceName in $ResourceGroupName" -ForegroundColor Cyan
+}
 
 $ErrorActionPreference = "Stop"
 
@@ -57,7 +91,7 @@ Write-Host @"
 # Load configuration from previous step
 if (Test-Path $ConfigPath) {
     $config = Get-Content $ConfigPath | ConvertFrom-Json
-    if (-not $ResourceGroupName -or $ResourceGroupName -eq "sre-perf-demo-rg") {
+    if (-not $ResourceGroupName -or $ResourceGroupName -eq "dotnet-day-demo") {
         $ResourceGroupName = $config.ResourceGroupName
     }
     if (-not $AppServiceName) {
@@ -77,22 +111,62 @@ Write-Info "  App Name: $AppServiceName"
 Write-Info "  Duration: $DurationMinutes minutes"
 Write-Info "  Concurrent Users: $ConcurrentUsers"
 
-$prodUrl = "https://$AppServiceName.azurewebsites.net"
+# Normalize slot name
+$normalizedSlot = switch ($Slot.ToLower()) {
+    "prod" { "production" }
+    "stage" { "staging" }
+    default { $Slot.ToLower() }
+}
 
-# Define endpoints to test
-$endpoints = @(
+# Build URL based on slot
+if ($normalizedSlot -eq "staging") {
+    $prodUrl = "https://$AppServiceName-staging.azurewebsites.net"
+    Write-Info "  Target Slot: STAGING"
+} else {
+    $prodUrl = "https://$AppServiceName.azurewebsites.net"
+    Write-Info "  Target Slot: PRODUCTION"
+}
+
+# Define endpoint sets
+$healthyEndpoints = @(
+    "/api/products",
+    "/api/products/1",
+    "/api/products/2",
+    "/api/products/3"
+)
+
+$stressEndpoints = @(
     "/api/cpuintensive",
     "/api/cpuintensive/1",
     "/api/cpuintensive/2",
     "/api/cpuintensive/3",
     "/api/cpuintensive/search?query=test",
     "/api/cpuintensive/cpu-stress",
-    "/api/featureflag/error-spike",  # NEW: Error spike endpoint to trigger Failure Anomalies
+    "/api/featureflag/error-spike"
+)
+
+$allEndpoints = @(
+    "/api/cpuintensive",
+    "/api/cpuintensive/1",
+    "/api/cpuintensive/2",
+    "/api/cpuintensive/3",
+    "/api/cpuintensive/search?query=test",
+    "/api/cpuintensive/cpu-stress",
+    "/api/featureflag/error-spike",
     "/health",
     "/api/featureflag/metrics"
 )
 
-# Load generation function
+# Select endpoints based on mode
+$endpoints = switch ($EndpointMode.ToLower()) {
+    "healthy" { $healthyEndpoints }
+    "stress" { $stressEndpoints }
+    default { $allEndpoints }
+}
+
+Write-Info "  Endpoint Mode: $EndpointMode ($($endpoints.Count) endpoints)"
+
+# Load generation function - sequential with real-time output
 function Start-LoadGeneration {
     param(
         [string]$BaseUrl,
@@ -112,92 +186,59 @@ function Start-LoadGeneration {
     Write-Info "Target URL: $BaseUrl"
     Write-Info "Endpoints: $($Endpoints.Count)"
     Write-Info "Duration: $DurationMinutes minutes"
-    Write-Info "Concurrent Users: $ConcurrentUsers"
+    Write-Info "Concurrent Users: $ConcurrentUsers (sequential simulation)"
     Write-Info "Start Time: $(Get-Date -Format 'HH:mm:ss')"
     Write-Info "End Time: $($endTime.ToString('HH:mm:ss'))"
+    Write-Host ""
 
-    # Create concurrent user tasks
-    $userTasks = @()
-    for ($user = 1; $user -le $ConcurrentUsers; $user++) {
-        $userTasks += Start-Job -ScriptBlock {
-            param($BaseUrl, $Endpoints, $EndTime, $UserNumber)
-            
-            $userRequests = 0
-            $userSuccessful = 0
-            $userFailed = 0
-            $userResponseTimes = @()
-            $userSlowRequests = 0
-
-            while ((Get-Date) -lt $EndTime) {
-                $endpoint = $Endpoints | Get-Random
-                $url = "$BaseUrl$endpoint"
-                $userRequests++
-
-                $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-                try {
-                    $response = Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 30
-                    $stopwatch.Stop()
-                    $responseTime = $stopwatch.ElapsedMilliseconds
-
-                    if ($response.StatusCode -eq 200) {
-                        $userSuccessful++
-                        $userResponseTimes += $responseTime
-                        
-                        if ($responseTime -gt 1000) {
-                            $userSlowRequests++
-                        }
-                    } else {
-                        $userFailed++
-                    }
-                } catch {
-                    $userFailed++
-                }
-
-                # Random delay between requests (1-3 seconds)
-                Start-Sleep -Seconds (Get-Random -Minimum 1 -Maximum 4)
-            }
-
-            return @{
-                UserNumber = $UserNumber
-                TotalRequests = $userRequests
-                SuccessfulRequests = $userSuccessful
-                FailedRequests = $userFailed
-                ResponseTimes = $userResponseTimes
-                SlowRequests = $userSlowRequests
-            }
-        } -ArgumentList $BaseUrl, $Endpoints, $endTime, $user
-    }
-
-    # Monitor progress
-    $progressInterval = 30 # seconds
-    $lastProgressTime = Get-Date
-
+    $requestNumber = 0
     while ((Get-Date) -lt $endTime) {
-        Start-Sleep -Seconds 5
-        
-        if ((Get-Date) - $lastProgressTime -gt [TimeSpan]::FromSeconds($progressInterval)) {
-            $elapsed = (Get-Date) - $lastProgressTime
-            $remaining = $endTime - (Get-Date)
-            Write-Info "Load generation in progress... Elapsed: $($elapsed.ToString('mm\:ss')), Remaining: $($remaining.ToString('mm\:ss'))"
-            $lastProgressTime = Get-Date
+        $endpoint = $Endpoints | Get-Random
+        $url = "$BaseUrl$endpoint"
+        $requestNumber++
+        $totalRequests++
+
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        try {
+            $response = Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 30
+            $stopwatch.Stop()
+            $responseTime = $stopwatch.ElapsedMilliseconds
+
+            if ($response.StatusCode -eq 200) {
+                $successfulRequests++
+                $responseTimes += $responseTime
+                
+                # Color code based on response time
+                if ($responseTime -gt 2000) {
+                    Write-Host "[#$requestNumber] $endpoint - ${responseTime}ms" -ForegroundColor Red -NoNewline
+                    Write-Host " CRITICAL" -ForegroundColor Red
+                    $slowRequests++
+                } elseif ($responseTime -gt 1000) {
+                    Write-Host "[#$requestNumber] $endpoint - ${responseTime}ms" -ForegroundColor Yellow -NoNewline
+                    Write-Host " SLOW" -ForegroundColor Yellow
+                    $slowRequests++
+                } else {
+                    Write-Host "[#$requestNumber] $endpoint - ${responseTime}ms" -ForegroundColor Green
+                }
+            } else {
+                Write-Host "[#$requestNumber] $endpoint - ${responseTime}ms" -ForegroundColor Magenta -NoNewline
+                Write-Host " STATUS: $($response.StatusCode)" -ForegroundColor Magenta
+                $failedRequests++
+            }
+        } catch {
+            $stopwatch.Stop()
+            $responseTime = $stopwatch.ElapsedMilliseconds
+            Write-Host "[#$requestNumber] $endpoint - FAILED (${responseTime}ms)" -ForegroundColor Red -NoNewline
+            Write-Host " $($_.Exception.Message)" -ForegroundColor DarkRed
+            $failedRequests++
         }
+
+        # Small delay between requests (0.5-1.5 seconds for faster testing)
+        Start-Sleep -Milliseconds (Get-Random -Minimum 500 -Maximum 1500)
     }
 
-    Write-Info "Load generation completed. Collecting results..."
-
-    # Collect results from all user tasks
-    foreach ($task in $userTasks) {
-        $result = Receive-Job -Job $task -Wait
-        Remove-Job -Job $task -Force
-
-        $totalRequests += $result.TotalRequests
-        $successfulRequests += $result.SuccessfulRequests
-        $failedRequests += $result.FailedRequests
-        $responseTimes += $result.ResponseTimes
-        $slowRequests += $result.SlowRequests
-
-        Write-Info "User $($result.UserNumber): $($result.SuccessfulRequests)/$($result.TotalRequests) successful, $($result.SlowRequests) slow requests"
-    }
+    Write-Host ""
+    Write-Info "Load generation completed!"
 
     return @{
         TotalRequests = $totalRequests

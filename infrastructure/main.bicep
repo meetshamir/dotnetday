@@ -18,6 +18,14 @@ param appServicePlanSku string = 'S1'
 @description('Application Insights Workspace name')
 param workspaceName string = 'sre-perf-demo-workspace'
 
+@description('Cosmos DB account name')
+param cosmosDbAccountName string = '${appServiceName}-cosmos'
+
+@description('Cosmos DB throughput (RU/s) - low for throttling demo')
+@minValue(400)
+@maxValue(10000)
+param cosmosDbThroughput int = 400
+
 // App Service Plan
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: '${appServiceName}-plan'
@@ -53,10 +61,73 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
+// Cosmos DB Account
+resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
+  name: cosmosDbAccountName
+  location: location
+  kind: 'GlobalDocumentDB'
+  properties: {
+    databaseAccountOfferType: 'Standard'
+    consistencyPolicy: {
+      defaultConsistencyLevel: 'Session'
+    }
+    locations: [
+      {
+        locationName: location
+        failoverPriority: 0
+        isZoneRedundant: false
+      }
+    ]
+    enableFreeTier: false
+    disableLocalAuth: true  // Required by MS policy - use Entra ID auth
+  }
+}
+
+// Cosmos DB Database
+resource cosmosDbDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = {
+  parent: cosmosDbAccount
+  name: 'ProductsDb'
+  properties: {
+    resource: {
+      id: 'ProductsDb'
+    }
+  }
+}
+
+// Cosmos DB Container with low throughput for throttling demo
+resource cosmosDbContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
+  parent: cosmosDbDatabase
+  name: 'Products'
+  properties: {
+    resource: {
+      id: 'Products'
+      partitionKey: {
+        paths: ['/category']
+        kind: 'Hash'
+      }
+      indexingPolicy: {
+        indexingMode: 'consistent'
+        automatic: true
+        includedPaths: [
+          {
+            path: '/*'
+          }
+        ]
+      }
+    }
+    options: {
+      throughput: cosmosDbThroughput
+    }
+  }
+}
+
 // App Service
 resource appService 'Microsoft.Web/sites@2023-01-01' = {
   name: appServiceName
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     serverFarmId: appServicePlan.id
     httpsOnly: true
@@ -94,9 +165,36 @@ resource appService 'Microsoft.Web/sites@2023-01-01' = {
           name: 'PerformanceSettings__MemoryThresholdMB'
           value: '100'
         }
+        {
+          name: 'CosmosDb__Endpoint'
+          value: cosmosDbAccount.properties.documentEndpoint
+        }
+        {
+          name: 'CosmosDb__UseEntraAuth'
+          value: 'true'
+        }
+        {
+          name: 'CosmosDb__DatabaseName'
+          value: 'ProductsDb'
+        }
+        {
+          name: 'CosmosDb__ContainerName'
+          value: 'Products'
+        }
       ]
       healthCheckPath: '/health'
     }
+  }
+}
+
+// Role assignment for App Service to access Cosmos DB
+resource cosmosDbRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
+  name: guid(cosmosDbAccount.id, appService.id, 'cosmos-data-contributor')
+  parent: cosmosDbAccount
+  properties: {
+    principalId: appService.identity.principalId
+    roleDefinitionId: '${cosmosDbAccount.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002' // Cosmos DB Built-in Data Contributor
+    scope: cosmosDbAccount.id
   }
 }
 
@@ -105,6 +203,9 @@ resource stagingSlot 'Microsoft.Web/sites/slots@2023-01-01' = {
   parent: appService
   name: 'staging'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
@@ -139,9 +240,36 @@ resource stagingSlot 'Microsoft.Web/sites/slots@2023-01-01' = {
           name: 'PerformanceSettings__MemoryThresholdMB'
           value: '100'
         }
+        {
+          name: 'CosmosDb__Endpoint'
+          value: cosmosDbAccount.properties.documentEndpoint
+        }
+        {
+          name: 'CosmosDb__UseEntraAuth'
+          value: 'true'
+        }
+        {
+          name: 'CosmosDb__DatabaseName'
+          value: 'ProductsDb'
+        }
+        {
+          name: 'CosmosDb__ContainerName'
+          value: 'Products'
+        }
       ]
       healthCheckPath: '/health'
     }
+  }
+}
+
+// Role assignment for Staging Slot to access Cosmos DB
+resource cosmosDbRoleAssignmentStaging 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
+  name: guid(cosmosDbAccount.id, stagingSlot.id, 'cosmos-data-contributor-staging')
+  parent: cosmosDbAccount
+  properties: {
+    principalId: stagingSlot.identity.principalId
+    roleDefinitionId: '${cosmosDbAccount.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002' // Cosmos DB Built-in Data Contributor
+    scope: cosmosDbAccount.id
   }
 }
 
@@ -347,9 +475,88 @@ resource failureAnomaliesAlert 'Microsoft.AlertsManagement/smartDetectorAlertRul
   }
 }
 
+// Cosmos DB Throttling Alert
+resource cosmosDbThrottlingAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: '${cosmosDbAccountName}-throttling-alert'
+  location: 'global'
+  properties: {
+    description: 'Alert when Cosmos DB is experiencing throttling (429 errors). REMEDIATION: Increase provisioned throughput (RU/s) or optimize queries to reduce RU consumption.'
+    severity: 1
+    enabled: true
+    autoMitigate: false
+    scopes: [
+      cosmosDbAccount.id
+    ]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'TotalRequestsThrottled'
+          metricName: 'TotalRequests'
+          operator: 'GreaterThan'
+          threshold: 0
+          timeAggregation: 'Count'
+          criterionType: 'StaticThresholdCriterion'
+          dimensions: [
+            {
+              name: 'StatusCode'
+              operator: 'Include'
+              values: ['429']
+            }
+          ]
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
+// Cosmos DB High RU Consumption Alert
+resource cosmosDbRuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: '${cosmosDbAccountName}-ru-consumption-alert'
+  location: 'global'
+  properties: {
+    description: 'Alert when Cosmos DB RU consumption is approaching limit (>80%). REMEDIATION: Increase provisioned throughput or optimize query patterns.'
+    severity: 2
+    enabled: true
+    autoMitigate: false
+    scopes: [
+      cosmosDbAccount.id
+    ]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'NormalizedRUConsumption'
+          metricName: 'NormalizedRUConsumption'
+          operator: 'GreaterThan'
+          threshold: 80
+          timeAggregation: 'Maximum'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
 // Output values
 output appServiceName string = appService.name
 output appServiceUrl string = 'https://${appService.properties.defaultHostName}'
 output stagingUrl string = 'https://${replace(appService.properties.defaultHostName, '.azurewebsites.net', '-staging.azurewebsites.net')}'
 output applicationInsightsConnectionString string = applicationInsights.properties.ConnectionString
 output applicationInsightsInstrumentationKey string = applicationInsights.properties.InstrumentationKey
+output cosmosDbEndpoint string = cosmosDbAccount.properties.documentEndpoint
+output cosmosDbAccountName string = cosmosDbAccount.name
