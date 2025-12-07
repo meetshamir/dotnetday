@@ -21,7 +21,7 @@ public class CpuIntensiveController : ControllerBase
         _logger.LogInformation("Getting all products (CPU-intensive version)");
 
         // Simulate CPU-intensive processing
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             // CPU-intensive operations that will cause high CPU usage
             for (int i = 0; i < 1000000; i++)
@@ -35,10 +35,10 @@ public class CpuIntensiveController : ControllerBase
                 // More CPU work
                 if (i % 10000 == 0)
                 {
-                    Thread.Sleep(1); // Brief pause to allow other threads
+                    await Task.Delay(1).ConfigureAwait(false); // Brief pause to allow other threads
                 }
             }
-        });
+        }).ConfigureAwait(false);
 
         // Additional CPU work - sorting with expensive comparison
         var sortedProducts = Products
@@ -55,7 +55,7 @@ public class CpuIntensiveController : ControllerBase
         _logger.LogInformation("Getting product {ProductId} (CPU-intensive version)", id);
 
         // CPU-intensive N+1 simulation
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             for (int i = 0; i < 20; i++)
             {
@@ -69,9 +69,9 @@ public class CpuIntensiveController : ControllerBase
                 // String processing
                 var hash = $"product_{id}_{i}_{expensiveResult}".GetHashCode();
                 
-                Thread.Sleep(10); // Small delay to accumulate CPU time
+                await Task.Delay(10).ConfigureAwait(false); // Small delay to accumulate CPU time
             }
-        });
+        }).ConfigureAwait(false);
 
         // Inefficient linear search with CPU work
         Product? product = null;
@@ -110,7 +110,7 @@ public class CpuIntensiveController : ControllerBase
         _logger.LogInformation("Searching products with query: {Query} (CPU-intensive version)", query);
 
         // CPU-intensive search simulation
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             // Expensive preprocessing
             for (int i = 0; i < 500000; i++)
@@ -120,10 +120,10 @@ public class CpuIntensiveController : ControllerBase
                 
                 if (i % 50000 == 0)
                 {
-                    Thread.Sleep(5);
+                    await Task.Delay(5).ConfigureAwait(false);
                 }
             }
-        });
+        }).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(query))
         {
@@ -202,7 +202,7 @@ public class CpuIntensiveController : ControllerBase
         var startTime = DateTime.UtcNow;
         var iterations = 0;
 
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             var endTime = startTime.AddSeconds(30); // Run for 30 seconds
             
@@ -230,10 +230,10 @@ public class CpuIntensiveController : ControllerBase
                 // Brief pause to prevent complete CPU lock
                 if (iterations % 1000 == 0)
                 {
-                    Thread.Sleep(1);
+                    await Task.Delay(1).ConfigureAwait(false);
                 }
             }
-        });
+        }).ConfigureAwait(false);
 
         var duration = DateTime.UtcNow - startTime;
         return Ok($"CPU stress test completed. Iterations: {iterations}, Duration: {duration.TotalSeconds:F2}s, CPU usage should be high");
@@ -248,7 +248,7 @@ public class CpuIntensiveController : ControllerBase
         var leakData = new List<byte[]>();
         var cpuWork = 0;
 
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             for (int i = 0; i < 50; i++)
             {
@@ -261,9 +261,9 @@ public class CpuIntensiveController : ControllerBase
                     cpuWork += j * i * ExpensiveHash($"leak_{i}_{j}");
                 }
                 
-                Thread.Sleep(20);
+                await Task.Delay(20).ConfigureAwait(false);
             }
-        });
+        }).ConfigureAwait(false);
 
         // Store in static holder to simulate memory leak
         StaticMemoryHolder.AddToMemory(leakData);

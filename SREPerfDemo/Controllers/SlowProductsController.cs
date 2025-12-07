@@ -54,7 +54,7 @@ public class SlowProductsController : ControllerBase
 
         // Inefficient linear search instead of indexed lookup
         Product? product = null;
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             foreach (var p in Products)
             {
@@ -64,9 +64,9 @@ public class SlowProductsController : ControllerBase
                     break;
                 }
                 // Simulate work being done for each iteration
-                Thread.Sleep(1);
+                await Task.Delay(1).ConfigureAwait(false);
             }
-        });
+        }).ConfigureAwait(false);
 
         if (product == null)
         {
@@ -146,15 +146,15 @@ public class SlowProductsController : ControllerBase
         // Simulate memory leak by creating large objects that aren't properly disposed
         var largeList = new List<byte[]>();
 
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             for (int i = 0; i < 100; i++)
             {
                 // Create 1MB byte arrays
                 largeList.Add(new byte[1024 * 1024]);
-                Thread.Sleep(10);
+                await Task.Delay(10).ConfigureAwait(false);
             }
-        });
+        }).ConfigureAwait(false);
 
         // Don't dispose or clear the list - simulating a memory leak
         // In a real scenario, this might be stored in a static field
