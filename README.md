@@ -27,78 +27,112 @@ Watch as we intentionally deploy "bad" code to production and observe how the SR
 
 ```mermaid
 graph LR
-    %% ===== TRIGGERS/TASKS (Left) =====
-    subgraph Triggers["🎯 Triggers & Tasks"]
-        INCIDENT["⚡ Incident<br/>Trigger"]
-        SCHED_BASELINE["📈 Baseline Task<br/>every 15m"]
-        SCHED_REPORTER["📋 Reporter Task<br/>every 24h"]
-    end
-
-    %% ===== RUNTIME (Center) =====
-    RUNTIME["🧠 SRE Agent<br/>Runtime"]
-
-    %% ===== SUB-AGENTS (Center-Right) =====
-    subgraph SubAgents["🤖 Sub-Agents"]
-        HEALTH["✅ Health Check"]
-        BASELINE["📈 Baseline"]
-        REPORTER["📋 Reporter"]
-    end
-
-    %% ===== DATA SOURCES (Top) =====
-    subgraph DataSources["📊 Data Sources"]
+    %% ===== APPLICATION ARCHITECTURE (Left) =====
+    subgraph AppArch["🖥️ Application Architecture"]
         APP["📦 .NET App<br/>App Service"]
         INSIGHTS["📊 App Insights"]
         ALERTS["🔔 Monitor Alerts"]
+        APP --> INSIGHTS
+        INSIGHTS --> ALERTS
+    end
+
+    %% ===== AZURE SRE AGENT (Center) =====
+    subgraph SREAgent["🤖 Azure SRE Agent"]
+        subgraph Triggers["🎯 Triggers & Tasks"]
+            INCIDENT["⚡ Incident<br/>Trigger"]
+            SCHED_BASELINE["📈 Baseline Task<br/>every 15m"]
+            SCHED_REPORTER["📋 Reporter Task<br/>every 24h"]
+        end
+
+        RUNTIME["🧠 SRE Agent<br/>Runtime"]
+
+        subgraph SubAgents["Sub-Agents"]
+            HEALTH["✅ Health Check"]
+            BASELINE["📈 Baseline"]
+            REPORTER["📋 Reporter"]
+        end
+
         KNOWLEDGE["💾 Knowledge Store"]
+
+        %% Internal agent flows
+        INCIDENT --> RUNTIME
+        SCHED_BASELINE --> RUNTIME
+        SCHED_REPORTER --> RUNTIME
+        RUNTIME --> HEALTH
+        RUNTIME --> BASELINE
+        RUNTIME --> REPORTER
+        BASELINE -->|"store"| KNOWLEDGE
     end
 
-    %% ===== EXTERNAL ACTIONS (Right) =====
+    %% ===== HEALTH CHECK ACTIONS (Right) =====
     subgraph HealthActions["✅ Health Check Actions"]
-        GITHUB["🐙 GitHub Issues"]
-        GHSEARCH["🔍 Semantic Search"]
-        COPILOT["🤖 Copilot"]
-        TEAMS_POST["💬 Teams Post"]
+        GITHUB["🐙 Create GitHub Issue"]
+        GHSEARCH["🔍 GitHub Semantic Search"]
+        COPILOT["🤖 Assign to Copilot"]
+        TEAMS_POST["💬 Post to Teams"]
     end
 
+    %% ===== REPORTER ACTIONS (Right) =====
     subgraph ReporterActions["📋 Reporter Actions"]
-        TEAMS_READ["💬 Teams Read"]
-        OUTLOOK["📧 Outlook"]
+        TEAMS_READ["💬 Read Teams"]
+        OUTLOOK["📧 Send Email"]
     end
 
-    %% ===== FLOW: Trigger → Runtime → Sub-Agent =====
+    %% ===== CROSS-BOUNDARY FLOWS =====
     ALERTS -->|"deployment<br/>alert"| INCIDENT
-    INCIDENT --> RUNTIME
-    SCHED_BASELINE --> RUNTIME
-    SCHED_REPORTER --> RUNTIME
+    HEALTH -->|"query"| INSIGHTS
+    HEALTH -->|"swap"| APP
+    BASELINE -->|"query"| INSIGHTS
     
-    RUNTIME --> HEALTH
-    RUNTIME --> BASELINE
-    RUNTIME --> REPORTER
-
-    %% ===== FLOW: Health Check → Data Sources & Actions =====
-    HEALTH -.->|"query"| INSIGHTS
-    HEALTH -.->|"swap"| APP
     HEALTH --> GITHUB
     HEALTH --> GHSEARCH
     HEALTH --> TEAMS_POST
-    GITHUB -->|"assign"| COPILOT
-
-    %% ===== FLOW: Baseline → Data Sources =====
-    BASELINE -.->|"query"| INSIGHTS
-    BASELINE -->|"store"| KNOWLEDGE
-
-    %% ===== FLOW: Reporter → Actions =====
+    GITHUB --> COPILOT
+    
     REPORTER --> TEAMS_READ
     REPORTER --> OUTLOOK
 
-    %% ===== STYLING =====
+    %% ===== STYLING - Brand Colors =====
+    %% Runtime
     style RUNTIME fill:#1e293b,color:#fff,stroke:#3b82f6,stroke-width:3px
+    
+    %% Triggers
     style INCIDENT fill:#ef4444,color:#fff
+    style SCHED_BASELINE fill:#3b82f6,color:#fff
+    style SCHED_REPORTER fill:#a855f7,color:#fff
+    
+    %% Sub-Agents
     style HEALTH fill:#22c55e,color:#fff
     style BASELINE fill:#3b82f6,color:#fff
     style REPORTER fill:#a855f7,color:#fff
-    style SCHED_BASELINE fill:#3b82f6,color:#fff
-    style SCHED_REPORTER fill:#a855f7,color:#fff
+    
+    %% Knowledge Store
+    style KNOWLEDGE fill:#6366f1,color:#fff
+    
+    %% GitHub - Black
+    style GITHUB fill:#24292e,color:#fff
+    style GHSEARCH fill:#24292e,color:#fff
+    style COPILOT fill:#24292e,color:#fff
+    
+    %% Teams - Purple
+    style TEAMS_POST fill:#5059c9,color:#fff
+    style TEAMS_READ fill:#5059c9,color:#fff
+    
+    %% Outlook - Blue
+    style OUTLOOK fill:#0078d4,color:#fff
+    
+    %% Azure - Blue
+    style APP fill:#0078d4,color:#fff
+    style INSIGHTS fill:#68217a,color:#fff
+    style ALERTS fill:#d13438,color:#fff
+
+    %% Link colors
+    linkStyle 0,1,2 stroke:#0078d4,stroke-width:2px
+    linkStyle 3,4,5,6,7,8,9,10 stroke:#6366f1,stroke-width:2px
+    linkStyle 11 stroke:#ef4444,stroke-width:2px
+    linkStyle 12,13,14 stroke:#22c55e,stroke-width:2px
+    linkStyle 15,16,17,18 stroke:#22c55e,stroke-width:2px
+    linkStyle 19,20 stroke:#a855f7,stroke-width:2px
 ```
 
 ## Prerequisites
