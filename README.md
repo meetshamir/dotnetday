@@ -37,16 +37,24 @@ graph LR
 
     subgraph SREAgent["🤖 Azure SRE Agent"]
         INCIDENT["⚡ Incident<br/>Trigger"]
-        SCHEDULED["⏰ Scheduled<br/>Task"]
+        
+        subgraph ScheduledTasks["⏰ Scheduled Tasks"]
+            SCHED_BASELINE["📈 Baseline<br/>Task"]
+            SCHED_REPORTER["📋 Reporter<br/>Task"]
+        end
+        
         RUNTIME["🧠 SRE Agent<br/>Runtime"]
         
         subgraph SubAgents["Sub-Agents"]
+            BASELINE["📈 Baseline"]
             HEALTH["✅ Health<br/>Check"]
             REPORTER["📋 Reporter"]
         end
         
         INCIDENT --> RUNTIME
-        SCHEDULED --> RUNTIME
+        SCHED_BASELINE --> RUNTIME
+        SCHED_REPORTER --> RUNTIME
+        RUNTIME --> BASELINE
         RUNTIME --> HEALTH
         RUNTIME --> REPORTER
         
@@ -62,18 +70,23 @@ graph LR
     end
 
     subgraph Integrations["🔌 Integrations"]
-        GITHUB["🐙 GitHub"]
+        GITHUB["🐙 GitHub<br/>Issues"]
+        GHSEARCH["🔍 GitHub<br/>Semantic Search"]
+        COPILOT["🤖 GitHub<br/>Copilot"]
         TEAMS["💬 Teams"]
         OUTLOOK["📧 Outlook"]
     end
 
     %% Cross-boundary connections
     ALERTS -->|"deployment alert"| INCIDENT
-    APP -.->|"swap"| HEALTH
-    INSIGHTS -.->|"query"| HEALTH
-    INSIGHTS -.->|"baseline<br/>every 15m"| SCHEDULED
+    HEALTH -.->|"swap"| APP
+    HEALTH -.->|"query"| INSIGHTS
+    BASELINE -.->|"query<br/>every 15m"| INSIGHTS
     
+    BASELINE -->|"store"| KNOWLEDGE
     HEALTH -->|"issue"| GITHUB
+    HEALTH -->|"search code"| GHSEARCH
+    HEALTH -->|"assign"| COPILOT
     HEALTH -->|"read"| TEAMS
     HEALTH -->|"post"| TEAMS
     REPORTER -->|"send"| OUTLOOK
