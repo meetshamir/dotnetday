@@ -52,11 +52,9 @@ graph LR
         end
         
         INCIDENT --> RUNTIME
-        SCHED_BASELINE --> RUNTIME
-        SCHED_REPORTER --> RUNTIME
-        RUNTIME --> BASELINE
+        SCHED_BASELINE -->|"every 15m"| BASELINE
+        SCHED_REPORTER -->|"every 24h"| REPORTER
         RUNTIME --> HEALTH
-        RUNTIME --> REPORTER
         
         KNOWLEDGE["💾 Knowledge<br/>Store"]
         MCP["🔗 MCP"]
@@ -69,27 +67,47 @@ graph LR
         RUNTIME --> PYTHON
     end
 
-    subgraph Integrations["🔌 Integrations"]
+    subgraph HealthCheckInt["✅ Health Check Actions"]
         GITHUB["🐙 GitHub<br/>Issues"]
         GHSEARCH["🔍 GitHub<br/>Semantic Search"]
         COPILOT["🤖 GitHub<br/>Copilot"]
-        TEAMS["💬 Teams"]
-        OUTLOOK["📧 Outlook"]
+        TEAMS_POST["💬 Teams<br/>Post"]
     end
 
-    %% Cross-boundary connections
+    subgraph ReporterInt["📋 Reporter Actions"]
+        TEAMS_READ["💬 Teams<br/>Read"]
+        OUTLOOK["📧 Outlook<br/>Send"]
+    end
+
+    %% Style definitions for different flows
+    linkStyle default stroke:#888
+    
+    %% Cross-boundary connections - Alerts (red)
     ALERTS -->|"deployment alert"| INCIDENT
+    
+    %% Health Check flows (green)
     HEALTH -.->|"swap"| APP
     HEALTH -.->|"query"| INSIGHTS
-    BASELINE -.->|"query<br/>every 15m"| INSIGHTS
-    
-    BASELINE -->|"store"| KNOWLEDGE
-    HEALTH -->|"issue"| GITHUB
-    HEALTH -->|"search code"| GHSEARCH
+    HEALTH --> GITHUB
+    HEALTH --> GHSEARCH
     GITHUB -->|"assign"| COPILOT
-    HEALTH -->|"post"| TEAMS
-    REPORTER -->|"read"| TEAMS
-    REPORTER -->|"send"| OUTLOOK
+    HEALTH --> TEAMS_POST
+    
+    %% Baseline flows (blue)
+    BASELINE -.->|"query"| INSIGHTS
+    BASELINE -->|"store"| KNOWLEDGE
+    
+    %% Reporter flows (purple)
+    REPORTER --> TEAMS_READ
+    REPORTER --> OUTLOOK
+    
+    %% Styling
+    style HEALTH fill:#22c55e,color:#fff
+    style BASELINE fill:#3b82f6,color:#fff
+    style REPORTER fill:#a855f7,color:#fff
+    style INCIDENT fill:#ef4444,color:#fff
+    style SCHED_BASELINE fill:#3b82f6,color:#fff
+    style SCHED_REPORTER fill:#a855f7,color:#fff
 ```
 
 ## Prerequisites
