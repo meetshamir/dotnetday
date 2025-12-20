@@ -2,7 +2,10 @@ namespace SREPerfDemo;
 
 public class PerformanceSettings
 {
-    public bool EnableSlowEndpoints { get; set; } = false;
+    // NOTE: EnableSlowEndpoints is now CODE-CONTROLLED in ProductsController.cs
+    // It's hardcoded as a const: true for slow/unhealthy, false for fast/healthy
+    // This allows slot swaps to change behavior (code swaps with the slot)
+    
     public bool EnableCpuIntensiveEndpoints { get; set; } = false;
     public int ResponseTimeThresholdMs { get; set; } = 1000;
     public int CpuThresholdPercentage { get; set; } = 80;

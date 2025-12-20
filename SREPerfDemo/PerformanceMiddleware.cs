@@ -41,7 +41,7 @@ public class PerformanceMiddleware
                 context.Response.StatusCode);
 
             // Add custom header for monitoring
-            context.Response.Headers.Add("X-Response-Time-Ms", responseTimeMs.ToString("F2"));
+            context.Response.Headers["X-Response-Time-Ms"] = responseTimeMs.ToString("F2");
 
             // Log slow requests
             if (responseTimeMs > 500)

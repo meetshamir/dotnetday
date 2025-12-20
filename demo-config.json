@@ -1,9 +1,0 @@
-﻿{
-    "ApplicationInsightsKey":  "9378df67-9d03-4295-841d-0f63ff962f15",
-    "StagingUrl":  "https://sre-perf-demo-app-7380-staging.azurewebsites.net",
-    "AppServiceName":  "sre-perf-demo-app-7380",
-    "ResourceGroupName":  "dotnet-day-demo",
-    "ProductionUrl":  "https://sre-perf-demo-app-7380.azurewebsites.net",
-    "Location":  "westus2",
-    "DeploymentTime":  "2025-12-05 10:22:10"
-}

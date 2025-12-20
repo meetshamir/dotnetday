@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace SREPerfDemo.Controllers;
 
@@ -8,16 +7,22 @@ namespace SREPerfDemo.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly ILogger<ProductsController> _logger;
-    private readonly IConfiguration _configuration;
     private static readonly List<Product> Products = GenerateProducts();
 
-    public ProductsController(ILogger<ProductsController> logger, IConfiguration configuration)
+    // ============================================================
+    // DEPLOYMENT FLAG - Controls slow/fast behavior
+    // ============================================================
+    // Set to TRUE for unhealthy deployment (slow N+1 queries)
+    // Set to FALSE for healthy deployment (optimized queries)
+    // This flag is CODE-CONTROLLED, not via app settings.
+    // After a slot swap, the code changes and behavior changes with it.
+    // ============================================================
+    private const bool EnableSlowEndpoints = false;  // VERSION 3.0 - Improved with better logging and metrics
+
+    public ProductsController(ILogger<ProductsController> logger)
     {
         _logger = logger;
-        _configuration = configuration;
     }
-    
-    private bool EnableSlowEndpoints => _configuration.GetValue<bool>("PerformanceSettings:EnableSlowEndpoints");
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
@@ -169,3 +174,7 @@ public class Product
     public double Price { get; set; }
     public bool InStock { get; set; }
 }
+
+
+
+
