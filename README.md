@@ -86,9 +86,9 @@ graph LR
     BASELINE -->|"store"| KNOWLEDGE
     HEALTH -->|"issue"| GITHUB
     HEALTH -->|"search code"| GHSEARCH
-    HEALTH -->|"assign"| COPILOT
-    HEALTH -->|"read"| TEAMS
+    GITHUB -->|"assign"| COPILOT
     HEALTH -->|"post"| TEAMS
+    REPORTER -->|"read"| TEAMS
     REPORTER -->|"send"| OUTLOOK
 ```
 
