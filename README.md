@@ -26,90 +26,77 @@ Watch as we intentionally deploy "bad" code to production and observe how the SR
 ## Architecture
 
 ```mermaid
-graph LR
-    %% ===== APPLICATION ARCHITECTURE (Left) =====
+flowchart TB
+    %% ===== ROW 1: APPLICATION =====
     subgraph AppArch["🖥️ Application Architecture"]
-        APP["📦 .NET App<br/>App Service"]
-        INSIGHTS["📊 App Insights"]
-        ALERTS["🔔 Monitor Alerts"]
-        APP --> INSIGHTS
-        INSIGHTS --> ALERTS
+        direction LR
+        APP["📦 .NET App Service"] --> INSIGHTS["📊 App Insights"] --> ALERTS["🔔 Monitor Alerts"]
     end
 
-    %% ===== AZURE SRE AGENT (Center) =====
+    %% ===== ROW 2: SRE AGENT =====
     subgraph SREAgent["🤖 Azure SRE Agent"]
-        subgraph Triggers["🎯 Triggers & Tasks"]
+        direction TB
+        
+        subgraph Triggers["🎯 Triggers & Scheduled Tasks"]
+            direction LR
             INCIDENT["⚡ Incident Trigger"]
-            SCHED_BASELINE["📈 Baseline Task<br/>every 15m"]
-            SCHED_REPORTER["📋 Reporter Task<br/>every 24h"]
+            SCHED_BASELINE["📈 Baseline Task • every 15m"]
+            SCHED_REPORTER["📋 Reporter Task • every 24h"]
         end
-
+        
         RUNTIME["🧠 SRE Agent Runtime"]
-
-        subgraph SubAgents["Sub-Agents"]
-            HEALTH["✅ Health Check"]
+        
+        subgraph SubAgents["🤖 Sub-Agents"]
+            direction LR
             BASELINE["📈 Baseline"]
+            HEALTH["✅ Health Check"]
             REPORTER["📋 Reporter"]
         end
-
+        
         KNOWLEDGE["💾 Knowledge Store"]
+        
+        Triggers --> RUNTIME --> SubAgents
+        BASELINE --> KNOWLEDGE
+        HEALTH --> KNOWLEDGE
     end
 
-    %% ===== EXTERNAL INTEGRATIONS (Right) - No subgraphs to avoid crossing =====
-    GITHUB["🐙 Create GitHub Issue"]
-    COPILOT["🤖 Assign to Copilot"]
-    GHSEARCH["🔍 GitHub Semantic Search"]
-    TEAMS_POST["💬 Post to Teams"]
-    TEAMS_READ["💬 Read Teams"]
-    OUTLOOK["📧 Send Email"]
+    %% ===== ROW 3: HEALTH CHECK INTEGRATIONS =====
+    subgraph HealthInt["✅ Health Check Integrations"]
+        direction LR
+        GITHUB["🐙 Create GitHub Issue"] --> COPILOT["🤖 Assign to Copilot"]
+        GHSEARCH["🔍 GitHub Semantic Search"]
+        TEAMS_POST["💬 Post to Teams"]
+    end
 
-    %% ===== INTERNAL AGENT FLOWS =====
-    INCIDENT --> RUNTIME
-    SCHED_BASELINE --> RUNTIME
-    SCHED_REPORTER --> RUNTIME
-    RUNTIME --> HEALTH
-    RUNTIME --> BASELINE
-    RUNTIME --> REPORTER
-    BASELINE --> KNOWLEDGE
+    %% ===== ROW 4: REPORTER INTEGRATIONS =====
+    subgraph ReportInt["📋 Reporter Integrations"]
+        direction LR
+        TEAMS_READ["💬 Read Teams"] --> OUTLOOK["📧 Send Email"]
+    end
 
-    %% ===== APP ARCHITECTURE TO AGENT =====
+    %% ===== CONNECTIONS =====
     ALERTS --> INCIDENT
-    
-    %% ===== HEALTH CHECK FLOWS (horizontal) =====
+    BASELINE --> INSIGHTS
     HEALTH --> INSIGHTS
     HEALTH --> APP
-    HEALTH --> GITHUB --> COPILOT
-    HEALTH --> GHSEARCH
-    HEALTH --> TEAMS_POST
+    HEALTH --> HealthInt
+    REPORTER --> ReportInt
 
-    %% ===== BASELINE FLOWS =====
-    BASELINE --> INSIGHTS
-
-    %% ===== REPORTER FLOWS (horizontal) =====
-    REPORTER --> TEAMS_READ --> OUTLOOK
-
-    %% ===== STYLING - Brand Colors =====
+    %% ===== STYLING =====
     style RUNTIME fill:#1e293b,color:#fff,stroke:#3b82f6,stroke-width:3px
-    
     style INCIDENT fill:#ef4444,color:#fff
     style SCHED_BASELINE fill:#3b82f6,color:#fff
     style SCHED_REPORTER fill:#a855f7,color:#fff
-    
     style HEALTH fill:#22c55e,color:#fff
     style BASELINE fill:#3b82f6,color:#fff
     style REPORTER fill:#a855f7,color:#fff
-    
     style KNOWLEDGE fill:#6366f1,color:#fff
-    
     style GITHUB fill:#24292e,color:#fff
     style GHSEARCH fill:#24292e,color:#fff
     style COPILOT fill:#24292e,color:#fff
-    
     style TEAMS_POST fill:#5059c9,color:#fff
     style TEAMS_READ fill:#5059c9,color:#fff
-    
     style OUTLOOK fill:#0078d4,color:#fff
-    
     style APP fill:#0078d4,color:#fff
     style INSIGHTS fill:#68217a,color:#fff
     style ALERTS fill:#d13438,color:#fff
