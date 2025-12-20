@@ -125,14 +125,7 @@ graph LR
     style APP fill:#0078d4,color:#fff
     style INSIGHTS fill:#68217a,color:#fff
     style ALERTS fill:#d13438,color:#fff
-
-    %% Link colors
-    linkStyle 0,1,2 stroke:#0078d4,stroke-width:2px
-    linkStyle 3,4,5,6,7,8,9,10 stroke:#6366f1,stroke-width:2px
-    linkStyle 11 stroke:#ef4444,stroke-width:2px
-    linkStyle 12,13,14 stroke:#22c55e,stroke-width:2px
-    linkStyle 15,16,17,18 stroke:#22c55e,stroke-width:2px
-    linkStyle 19,20 stroke:#a855f7,stroke-width:2px
+```
 ```
 
 ## Prerequisites
