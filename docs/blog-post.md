@@ -6,13 +6,11 @@
 
 ## 📺 Watch the Demo
 
-This content was originally presented at **.NET Conf 2024** and has been enhanced with additional capabilities since then. Watch the full session to see Azure SRE Agent in action:
+This content was presented at **.NET Day 2025**. Watch the full session to see Azure SRE Agent in action:
 
 [![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20Demo-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=Kx_6SB-mhgg)
 
-🎬 **[Fix it before they feel it - .NET Conf 2024](https://www.youtube.com/watch?v=Kx_6SB-mhgg)**
-
-> *Since the original presentation, we've added baseline learning, knowledge store integration, GitHub Copilot assignment, and enhanced reporting capabilities.*
+🎬 **[Fix it before they feel it - .NET Day 2025](https://www.youtube.com/watch?v=Kx_6SB-mhgg)**
 
 ---
 

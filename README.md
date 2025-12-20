@@ -2,13 +2,11 @@
 
 ## 📺 Watch the Demo
 
-This demo was originally presented at **.NET Conf 2024** and has been enhanced with additional capabilities since then:
+This demo was presented at **.NET Day 2025**:
 
 [![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20Demo-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=Kx_6SB-mhgg)
 
-🎬 **[Fix it before they feel it - .NET Conf 2024](https://www.youtube.com/watch?v=Kx_6SB-mhgg)**
-
-> *Since the original presentation, we've added baseline learning, knowledge store integration, GitHub Copilot assignment, and enhanced reporting capabilities.*
+🎬 **[Fix it before they feel it - .NET Day 2025](https://www.youtube.com/watch?v=Kx_6SB-mhgg)**
 
 ---
 
