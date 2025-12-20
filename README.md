@@ -62,6 +62,7 @@ graph LR
         RUNTIME --> BASELINE
         RUNTIME --> REPORTER
         BASELINE -->|"store"| KNOWLEDGE
+        HEALTH -->|"read"| KNOWLEDGE
     end
 
     %% ===== HEALTH CHECK ACTIONS (Right) =====
