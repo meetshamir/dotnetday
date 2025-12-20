@@ -4,6 +4,18 @@
 
 ---
 
+## 📺 Watch the Demo
+
+This content was originally presented at **.NET Conf 2024** and has been enhanced with additional capabilities since then. Watch the full session to see Azure SRE Agent in action:
+
+[![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20Demo-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=Kx_6SB-mhgg)
+
+🎬 **[Fix it before they feel it - .NET Conf 2024](https://www.youtube.com/watch?v=Kx_6SB-mhgg)**
+
+> *Since the original presentation, we've added baseline learning, knowledge store integration, GitHub Copilot assignment, and enhanced reporting capabilities.*
+
+---
+
 What if your infrastructure could detect performance issues and fix them automatically—before your users even notice? This blog brings that vision to life using **Azure SRE Agent**, an AI-powered autonomous agent that monitors, detects, and remediates production issues in real-time.
 
 > 💡 **The magic**: Zero human intervention required. The agent handles detection, diagnosis, remediation, and reporting—all autonomously.
@@ -86,7 +98,7 @@ This script will:
 
 ### Step 2: Configure Azure SRE Agent
 
-Navigate to [Azure SRE Agents Portal](https://sre.azure.com) and create three sub-agents:
+Navigate to Azure SRE Agents Portal Sub Agent builder tab and create three sub-agents:
 
 | Sub-Agent | Purpose | Tools Used |
 |-----------|---------|------------|
@@ -169,7 +181,7 @@ The setup script creates two versions:
 
 🔗 **Full source code and instructions**: [github.com/meetshamir/dotnetday](https://github.com/meetshamir/dotnetday)
 
-🔗 **Azure SRE Agent documentation**: [sre.azure.com](https://sre.azure.com)
+🔗 **Azure SRE Agent documentation**: [https://learn.microsoft.com/en-us/azure/sre-agent/](https://learn.microsoft.com/en-us/azure/sre-agent/)
 
 ---
 
