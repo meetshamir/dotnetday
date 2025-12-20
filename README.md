@@ -27,85 +27,76 @@ Watch as we intentionally deploy "bad" code to production and observe how the SR
 
 ```mermaid
 graph LR
-    subgraph AppService["🖥️ .NET App on App Service"]
-        APP["📦 .NET App<br/>App Service"]
-        INSIGHTS["📊 App<br/>Insights"]
-        ALERTS["🔔 Monitor<br/>Alerts"]
-        APP --> INSIGHTS
-        INSIGHTS --> ALERTS
-    end
-
-    subgraph SREAgent["🤖 Azure SRE Agent"]
+    %% ===== TRIGGERS/TASKS (Left) =====
+    subgraph Triggers["🎯 Triggers & Tasks"]
         INCIDENT["⚡ Incident<br/>Trigger"]
-        
-        subgraph ScheduledTasks["⏰ Scheduled Tasks"]
-            SCHED_BASELINE["📈 Baseline<br/>Task"]
-            SCHED_REPORTER["📋 Reporter<br/>Task"]
-        end
-        
-        RUNTIME["🧠 SRE Agent<br/>Runtime"]
-        
-        subgraph SubAgents["Sub-Agents"]
-            BASELINE["📈 Baseline"]
-            HEALTH["✅ Health<br/>Check"]
-            REPORTER["📋 Reporter"]
-        end
-        
-        INCIDENT --> RUNTIME
-        SCHED_BASELINE -->|"every 15m"| BASELINE
-        SCHED_REPORTER -->|"every 24h"| REPORTER
-        RUNTIME --> HEALTH
-        
-        KNOWLEDGE["💾 Knowledge<br/>Store"]
-        MCP["🔗 MCP"]
-        TOOLS["🛠️ Built-in<br/>Tools"]
-        PYTHON["🐍 Python<br/>Interpreter"]
-        
-        RUNTIME --> KNOWLEDGE
-        RUNTIME --> MCP
-        RUNTIME --> TOOLS
-        RUNTIME --> PYTHON
+        SCHED_BASELINE["📈 Baseline Task<br/>every 15m"]
+        SCHED_REPORTER["📋 Reporter Task<br/>every 24h"]
     end
 
-    subgraph HealthCheckInt["✅ Health Check Actions"]
-        GITHUB["🐙 GitHub<br/>Issues"]
-        GHSEARCH["🔍 GitHub<br/>Semantic Search"]
-        COPILOT["🤖 GitHub<br/>Copilot"]
-        TEAMS_POST["💬 Teams<br/>Post"]
+    %% ===== RUNTIME (Center) =====
+    RUNTIME["🧠 SRE Agent<br/>Runtime"]
+
+    %% ===== SUB-AGENTS (Center-Right) =====
+    subgraph SubAgents["🤖 Sub-Agents"]
+        HEALTH["✅ Health Check"]
+        BASELINE["📈 Baseline"]
+        REPORTER["📋 Reporter"]
     end
 
-    subgraph ReporterInt["📋 Reporter Actions"]
-        TEAMS_READ["💬 Teams<br/>Read"]
-        OUTLOOK["📧 Outlook<br/>Send"]
+    %% ===== DATA SOURCES (Top) =====
+    subgraph DataSources["📊 Data Sources"]
+        APP["📦 .NET App<br/>App Service"]
+        INSIGHTS["📊 App Insights"]
+        ALERTS["🔔 Monitor Alerts"]
+        KNOWLEDGE["💾 Knowledge Store"]
     end
 
-    %% Style definitions for different flows
-    linkStyle default stroke:#888
+    %% ===== EXTERNAL ACTIONS (Right) =====
+    subgraph HealthActions["✅ Health Check Actions"]
+        GITHUB["🐙 GitHub Issues"]
+        GHSEARCH["🔍 Semantic Search"]
+        COPILOT["🤖 Copilot"]
+        TEAMS_POST["💬 Teams Post"]
+    end
+
+    subgraph ReporterActions["📋 Reporter Actions"]
+        TEAMS_READ["💬 Teams Read"]
+        OUTLOOK["📧 Outlook"]
+    end
+
+    %% ===== FLOW: Trigger → Runtime → Sub-Agent =====
+    ALERTS -->|"deployment<br/>alert"| INCIDENT
+    INCIDENT --> RUNTIME
+    SCHED_BASELINE --> RUNTIME
+    SCHED_REPORTER --> RUNTIME
     
-    %% Cross-boundary connections - Alerts (red)
-    ALERTS -->|"deployment alert"| INCIDENT
-    
-    %% Health Check flows (green)
-    HEALTH -.->|"swap"| APP
+    RUNTIME --> HEALTH
+    RUNTIME --> BASELINE
+    RUNTIME --> REPORTER
+
+    %% ===== FLOW: Health Check → Data Sources & Actions =====
     HEALTH -.->|"query"| INSIGHTS
+    HEALTH -.->|"swap"| APP
     HEALTH --> GITHUB
     HEALTH --> GHSEARCH
-    GITHUB -->|"assign"| COPILOT
     HEALTH --> TEAMS_POST
-    
-    %% Baseline flows (blue)
+    GITHUB -->|"assign"| COPILOT
+
+    %% ===== FLOW: Baseline → Data Sources =====
     BASELINE -.->|"query"| INSIGHTS
     BASELINE -->|"store"| KNOWLEDGE
-    
-    %% Reporter flows (purple)
+
+    %% ===== FLOW: Reporter → Actions =====
     REPORTER --> TEAMS_READ
     REPORTER --> OUTLOOK
-    
-    %% Styling
+
+    %% ===== STYLING =====
+    style RUNTIME fill:#1e293b,color:#fff,stroke:#3b82f6,stroke-width:3px
+    style INCIDENT fill:#ef4444,color:#fff
     style HEALTH fill:#22c55e,color:#fff
     style BASELINE fill:#3b82f6,color:#fff
     style REPORTER fill:#a855f7,color:#fff
-    style INCIDENT fill:#ef4444,color:#fff
     style SCHED_BASELINE fill:#3b82f6,color:#fff
     style SCHED_REPORTER fill:#a855f7,color:#fff
 ```
