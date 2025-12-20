@@ -39,12 +39,12 @@ graph LR
     %% ===== AZURE SRE AGENT (Center) =====
     subgraph SREAgent["🤖 Azure SRE Agent"]
         subgraph Triggers["🎯 Triggers & Tasks"]
-            INCIDENT["⚡ Incident<br/>Trigger"]
+            INCIDENT["⚡ Incident Trigger"]
             SCHED_BASELINE["📈 Baseline Task<br/>every 15m"]
             SCHED_REPORTER["📋 Reporter Task<br/>every 24h"]
         end
 
-        RUNTIME["🧠 SRE Agent<br/>Runtime"]
+        RUNTIME["🧠 SRE Agent Runtime"]
 
         subgraph SubAgents["Sub-Agents"]
             HEALTH["✅ Health Check"]
@@ -53,75 +53,63 @@ graph LR
         end
 
         KNOWLEDGE["💾 Knowledge Store"]
-
-        %% Internal agent flows
-        INCIDENT --> RUNTIME
-        SCHED_BASELINE --> RUNTIME
-        SCHED_REPORTER --> RUNTIME
-        RUNTIME --> HEALTH
-        RUNTIME --> BASELINE
-        RUNTIME --> REPORTER
-        BASELINE -->|"store"| KNOWLEDGE
     end
 
-    %% ===== HEALTH CHECK ACTIONS (Right) =====
-    subgraph HealthActions["✅ Health Check Actions"]
-        GITHUB["🐙 Create GitHub Issue"]
-        GHSEARCH["🔍 GitHub Semantic Search"]
-        COPILOT["🤖 Assign to Copilot"]
-        TEAMS_POST["💬 Post to Teams"]
-    end
+    %% ===== EXTERNAL INTEGRATIONS (Right) - No subgraphs to avoid crossing =====
+    GITHUB["🐙 Create GitHub Issue"]
+    COPILOT["🤖 Assign to Copilot"]
+    GHSEARCH["🔍 GitHub Semantic Search"]
+    TEAMS_POST["💬 Post to Teams"]
+    TEAMS_READ["💬 Read Teams"]
+    OUTLOOK["📧 Send Email"]
 
-    %% ===== REPORTER ACTIONS (Right) =====
-    subgraph ReporterActions["📋 Reporter Actions"]
-        TEAMS_READ["💬 Read Teams"]
-        OUTLOOK["📧 Send Email"]
-    end
+    %% ===== INTERNAL AGENT FLOWS =====
+    INCIDENT --> RUNTIME
+    SCHED_BASELINE --> RUNTIME
+    SCHED_REPORTER --> RUNTIME
+    RUNTIME --> HEALTH
+    RUNTIME --> BASELINE
+    RUNTIME --> REPORTER
+    BASELINE --> KNOWLEDGE
 
-    %% ===== CROSS-BOUNDARY FLOWS =====
-    ALERTS -->|"deployment<br/>alert"| INCIDENT
-    HEALTH -->|"query"| INSIGHTS
-    HEALTH -->|"swap"| APP
-    BASELINE -->|"query"| INSIGHTS
+    %% ===== APP ARCHITECTURE TO AGENT =====
+    ALERTS --> INCIDENT
     
-    HEALTH --> GITHUB
+    %% ===== HEALTH CHECK FLOWS (horizontal) =====
+    HEALTH --> INSIGHTS
+    HEALTH --> APP
+    HEALTH --> GITHUB --> COPILOT
     HEALTH --> GHSEARCH
     HEALTH --> TEAMS_POST
-    GITHUB --> COPILOT
-    
-    REPORTER --> TEAMS_READ
-    REPORTER --> OUTLOOK
+
+    %% ===== BASELINE FLOWS =====
+    BASELINE --> INSIGHTS
+
+    %% ===== REPORTER FLOWS (horizontal) =====
+    REPORTER --> TEAMS_READ --> OUTLOOK
 
     %% ===== STYLING - Brand Colors =====
-    %% Runtime
     style RUNTIME fill:#1e293b,color:#fff,stroke:#3b82f6,stroke-width:3px
     
-    %% Triggers
     style INCIDENT fill:#ef4444,color:#fff
     style SCHED_BASELINE fill:#3b82f6,color:#fff
     style SCHED_REPORTER fill:#a855f7,color:#fff
     
-    %% Sub-Agents
     style HEALTH fill:#22c55e,color:#fff
     style BASELINE fill:#3b82f6,color:#fff
     style REPORTER fill:#a855f7,color:#fff
     
-    %% Knowledge Store
     style KNOWLEDGE fill:#6366f1,color:#fff
     
-    %% GitHub - Black
     style GITHUB fill:#24292e,color:#fff
     style GHSEARCH fill:#24292e,color:#fff
     style COPILOT fill:#24292e,color:#fff
     
-    %% Teams - Purple
     style TEAMS_POST fill:#5059c9,color:#fff
     style TEAMS_READ fill:#5059c9,color:#fff
     
-    %% Outlook - Blue
     style OUTLOOK fill:#0078d4,color:#fff
     
-    %% Azure - Blue
     style APP fill:#0078d4,color:#fff
     style INSIGHTS fill:#68217a,color:#fff
     style ALERTS fill:#d13438,color:#fff
