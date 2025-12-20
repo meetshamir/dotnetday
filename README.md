@@ -26,77 +26,102 @@ Watch as we intentionally deploy "bad" code to production and observe how the SR
 ## Architecture
 
 ```mermaid
-flowchart TB
-    %% ===== ROW 1: APPLICATION =====
+graph LR
+    %% ===== APPLICATION ARCHITECTURE (Left) =====
     subgraph AppArch["🖥️ Application Architecture"]
-        direction LR
-        APP["📦 .NET App Service"] --> INSIGHTS["📊 App Insights"] --> ALERTS["🔔 Monitor Alerts"]
+        APP["📦 .NET App<br/>App Service"]
+        INSIGHTS["📊 App Insights"]
+        ALERTS["🔔 Monitor Alerts"]
+        APP --> INSIGHTS
+        INSIGHTS --> ALERTS
     end
 
-    %% ===== ROW 2: SRE AGENT =====
+    %% ===== AZURE SRE AGENT (Center) =====
     subgraph SREAgent["🤖 Azure SRE Agent"]
-        direction TB
-        
-        subgraph Triggers["🎯 Triggers & Scheduled Tasks"]
-            direction LR
-            INCIDENT["⚡ Incident Trigger"]
-            SCHED_BASELINE["📈 Baseline Task • every 15m"]
-            SCHED_REPORTER["📋 Reporter Task • every 24h"]
+        subgraph Triggers["🎯 Triggers & Tasks"]
+            INCIDENT["⚡ Incident<br/>Trigger"]
+            SCHED_BASELINE["📈 Baseline Task<br/>every 15m"]
+            SCHED_REPORTER["📋 Reporter Task<br/>every 24h"]
         end
-        
-        RUNTIME["🧠 SRE Agent Runtime"]
-        
-        subgraph SubAgents["🤖 Sub-Agents"]
-            direction LR
-            BASELINE["📈 Baseline"]
+
+        RUNTIME["🧠 SRE Agent<br/>Runtime"]
+
+        subgraph SubAgents["Sub-Agents"]
             HEALTH["✅ Health Check"]
+            BASELINE["📈 Baseline"]
             REPORTER["📋 Reporter"]
         end
-        
+
         KNOWLEDGE["💾 Knowledge Store"]
-        
-        Triggers --> RUNTIME --> SubAgents
-        BASELINE --> KNOWLEDGE
-        HEALTH --> KNOWLEDGE
+
+        %% Internal agent flows
+        INCIDENT --> RUNTIME
+        SCHED_BASELINE --> RUNTIME
+        SCHED_REPORTER --> RUNTIME
+        RUNTIME --> HEALTH
+        RUNTIME --> BASELINE
+        RUNTIME --> REPORTER
+        BASELINE -->|"store"| KNOWLEDGE
     end
 
-    %% ===== ROW 3: HEALTH CHECK INTEGRATIONS =====
-    subgraph HealthInt["✅ Health Check Integrations"]
-        direction LR
-        GITHUB["🐙 Create GitHub Issue"] --> COPILOT["🤖 Assign to Copilot"]
+    %% ===== HEALTH CHECK ACTIONS (Right) =====
+    subgraph HealthActions["✅ Health Check Actions"]
+        GITHUB["🐙 Create GitHub Issue"]
         GHSEARCH["🔍 GitHub Semantic Search"]
+        COPILOT["🤖 Assign to Copilot"]
         TEAMS_POST["💬 Post to Teams"]
     end
 
-    %% ===== ROW 4: REPORTER INTEGRATIONS =====
-    subgraph ReportInt["📋 Reporter Integrations"]
-        direction LR
-        TEAMS_READ["💬 Read Teams"] --> OUTLOOK["📧 Send Email"]
+    %% ===== REPORTER ACTIONS (Right) =====
+    subgraph ReporterActions["📋 Reporter Actions"]
+        TEAMS_READ["💬 Read Teams"]
+        OUTLOOK["📧 Send Email"]
     end
 
-    %% ===== CONNECTIONS =====
-    ALERTS --> INCIDENT
-    BASELINE --> INSIGHTS
-    HEALTH --> INSIGHTS
-    HEALTH --> APP
-    HEALTH --> HealthInt
-    REPORTER --> ReportInt
+    %% ===== CROSS-BOUNDARY FLOWS =====
+    ALERTS -->|"deployment<br/>alert"| INCIDENT
+    HEALTH -->|"query"| INSIGHTS
+    HEALTH -->|"swap"| APP
+    BASELINE -->|"query"| INSIGHTS
+    
+    HEALTH --> GITHUB
+    HEALTH --> GHSEARCH
+    HEALTH --> TEAMS_POST
+    GITHUB --> COPILOT
+    
+    REPORTER --> TEAMS_READ
+    REPORTER --> OUTLOOK
 
-    %% ===== STYLING =====
+    %% ===== STYLING - Brand Colors =====
+    %% Runtime
     style RUNTIME fill:#1e293b,color:#fff,stroke:#3b82f6,stroke-width:3px
+    
+    %% Triggers
     style INCIDENT fill:#ef4444,color:#fff
     style SCHED_BASELINE fill:#3b82f6,color:#fff
     style SCHED_REPORTER fill:#a855f7,color:#fff
+    
+    %% Sub-Agents
     style HEALTH fill:#22c55e,color:#fff
     style BASELINE fill:#3b82f6,color:#fff
     style REPORTER fill:#a855f7,color:#fff
+    
+    %% Knowledge Store
     style KNOWLEDGE fill:#6366f1,color:#fff
+    
+    %% GitHub - Black
     style GITHUB fill:#24292e,color:#fff
     style GHSEARCH fill:#24292e,color:#fff
     style COPILOT fill:#24292e,color:#fff
+    
+    %% Teams - Purple
     style TEAMS_POST fill:#5059c9,color:#fff
     style TEAMS_READ fill:#5059c9,color:#fff
+    
+    %% Outlook - Blue
     style OUTLOOK fill:#0078d4,color:#fff
+    
+    %% Azure - Blue
     style APP fill:#0078d4,color:#fff
     style INSIGHTS fill:#68217a,color:#fff
     style ALERTS fill:#d13438,color:#fff
