@@ -127,7 +127,6 @@ graph LR
     style INSIGHTS fill:#68217a,color:#fff
     style ALERTS fill:#d13438,color:#fff
 ```
-```
 
 ## Prerequisites
 
