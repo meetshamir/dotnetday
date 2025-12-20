@@ -25,57 +25,58 @@ Watch as we intentionally deploy "bad" code to production and observe how the SR
 
 ## Architecture
 
-### Infrastructure Overview
-
 ```mermaid
-graph TB
-    subgraph Azure["☁️ Azure Resources"]
-        subgraph ASP["App Service Plan (S1)"]
-            PROD["🟢 Production Slot<br/>Healthy Code"]
-            STAGE["🟡 Staging Slot<br/>Problematic Code"]
+graph LR
+    subgraph AppService["🖥️ .NET App on App Service"]
+        APP["📦 .NET App<br/>App Service"]
+        INSIGHTS["📊 App<br/>Insights"]
+        ALERTS["🔔 Monitor<br/>Alerts"]
+        APP --> INSIGHTS
+        INSIGHTS --> ALERTS
+    end
+
+    subgraph SREAgent["🤖 Azure SRE Agent"]
+        INCIDENT["⚡ Incident<br/>Trigger"]
+        SCHEDULED["⏰ Scheduled<br/>Task"]
+        RUNTIME["🧠 SRE Agent<br/>Runtime"]
+        
+        subgraph SubAgents["Sub-Agents"]
+            HEALTH["✅ Health<br/>Check"]
+            REPORTER["📋 Reporter"]
         end
         
-        AI["📊 Application Insights"]
-        LAW["📋 Log Analytics Workspace"]
-        ALERT["🔔 Activity Log Alert<br/>(Slot Swap)"]
-        AG["📢 Action Group"]
+        INCIDENT --> RUNTIME
+        SCHEDULED --> RUNTIME
+        RUNTIME --> HEALTH
+        RUNTIME --> REPORTER
         
-        AI --> LAW
-        ALERT --> AG
+        KNOWLEDGE["💾 Knowledge<br/>Store"]
+        MCP["🔗 MCP"]
+        TOOLS["🛠️ Built-in<br/>Tools"]
+        PYTHON["🐍 Python<br/>Interpreter"]
+        
+        RUNTIME --> KNOWLEDGE
+        RUNTIME --> MCP
+        RUNTIME --> TOOLS
+        RUNTIME --> PYTHON
     end
-    
-    SRE["🤖 Azure SRE Agent"]
-    AG --> SRE
-```
 
-### Remediation Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Dev as 👨‍💻 Developer
-    participant App as 🌐 App Service
-    participant AI as 📊 App Insights
-    participant Alert as 🔔 Alert
-    participant Agent as 🤖 SRE Agent
-    participant Teams as 💬 Teams
-    participant GH as 🐙 GitHub
-
-    Dev->>App: Deploy bad code (slot swap)
-    App->>AI: Telemetry (slow responses)
-    AI->>Alert: Threshold exceeded
-    Alert->>Agent: Incident trigger fires
-    
-    Agent->>AI: Query current response time
-    Agent->>Agent: Compare to baseline
-    Agent->>App: Execute slot swap (rollback)
-    
-    par Notify Stakeholders
-        Agent->>Teams: Post incident details
-        Agent->>GH: Create issue
+    subgraph Integrations["🔌 Integrations"]
+        GITHUB["🐙 GitHub"]
+        TEAMS["💬 Teams"]
+        OUTLOOK["📧 Outlook"]
     end
+
+    %% Cross-boundary connections
+    ALERTS -->|"deployment alert"| INCIDENT
+    APP -.->|"swap"| HEALTH
+    INSIGHTS -.->|"query"| HEALTH
+    INSIGHTS -.->|"baseline<br/>every 15m"| SCHEDULED
     
-    App->>AI: Telemetry (healthy responses)
+    HEALTH -->|"issue"| GITHUB
+    HEALTH -->|"read"| TEAMS
+    HEALTH -->|"post"| TEAMS
+    REPORTER -->|"send"| OUTLOOK
 ```
 
 ## Prerequisites
