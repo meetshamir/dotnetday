@@ -60,6 +60,44 @@ The solution uses Azure SRE Agent with three specialized sub-agents working toge
 - Microsoft Teams (deployment summaries)
 - Outlook (summary reports)
 
+## What the SRE Agent Does
+
+When a deployment occurs, the SRE Agent autonomously performs the following actions:
+
+### 1. Health Check (DeploymentHealthCheck Sub-Agent)
+
+When a slot swap alert fires, the agent:
+- Queries App Insights for current response times
+- Retrieves the baseline from the Knowledge Store
+- Compares current performance against baseline
+- **If degradation > 20%**: Executes rollback and creates GitHub issue
+- **If healthy**: Posts confirmation to Teams
+
+**Healthy Deployment - No Action Needed:**
+
+![Teams Post - Healthy](https://raw.githubusercontent.com/microsoft/sre-agent/main/samples/proactive-reliability/docs/images/outputs/teams-post-healthy.png)
+
+*The agent confirms the deployment is healthy — response time (22ms) is 80% faster than baseline (116ms).*
+
+**Degraded Deployment - Automatic Rollback:**
+
+![Teams Post - Rollback](https://raw.githubusercontent.com/microsoft/sre-agent/main/samples/proactive-reliability/docs/images/outputs/teams-post-rollback.png)
+
+*The agent detects +332% latency regression (505ms vs 116ms baseline), executes a slot swap to rollback, and creates [GitHub Issue #5](https://github.com/meetshamir/dotnetday/issues/5).*
+
+### 2. Daily Summary (DeploymentReporter Sub-Agent)
+
+Every 24 hours, the reporter agent:
+- Reads all Teams deployment posts from the last 24 hours
+- Aggregates deployment metrics
+- Sends an executive summary email
+
+**Email Report:**
+
+![Email Report](https://raw.githubusercontent.com/microsoft/sre-agent/main/samples/proactive-reliability/docs/images/outputs/email-report.png)
+
+*The daily report shows 9 deployments, 6 healthy, 3 rollbacks, and 3 GitHub issues created — complete with response time details and issue links.*
+
 ## Demo Flow
 
 **[View Step-by-Step Instructions →](https://github.com/microsoft/sre-agent/tree/main/samples/proactive-reliability#demo-flow)**
