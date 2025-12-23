@@ -73,15 +73,15 @@ When a slot swap alert fires, the agent:
 - **If degradation > 20%**: Executes rollback and creates GitHub issue
 - **If healthy**: Posts confirmation to Teams
 
-**Healthy Deployment - No Action Needed:**
+**Healthy Deployment - No Action Needed (Teams Post):**
 
-![Teams Post - Healthy](https://raw.githubusercontent.com/meetshamir/dotnetday/main/docs/images/outputs/teams-post-healthy.png)
+![Teams Post - Healthy Deployment](https://raw.githubusercontent.com/meetshamir/dotnetday/main/docs/images/outputs/teams-post-healthy.png)
 
 *The agent confirms the deployment is healthy — response time (22ms) is 80% faster than baseline (116ms).*
 
-**Degraded Deployment - Automatic Rollback:**
+**Degraded Deployment - Automatic Rollback (Teams Post):**
 
-![Teams Post - Rollback](https://raw.githubusercontent.com/meetshamir/dotnetday/main/docs/images/outputs/teams-post-rollback.png)
+![Teams Post - Rollback Executed](https://raw.githubusercontent.com/meetshamir/dotnetday/main/docs/images/outputs/teams-post-rollback.png)
 
 *The agent detects +332% latency regression (505ms vs 116ms baseline), executes a slot swap to rollback, and creates [GitHub Issue #5](https://github.com/meetshamir/dotnetday/issues/5).*
 
@@ -92,9 +92,9 @@ Every 24 hours, the reporter agent:
 - Aggregates deployment metrics
 - Sends an executive summary email
 
-**Email Report:**
+**Daily Summary (Outlook Email):**
 
-![Email Report](https://raw.githubusercontent.com/meetshamir/dotnetday/main/docs/images/outputs/email-report.png)
+![Outlook Email - Daily Deployment Report](https://raw.githubusercontent.com/meetshamir/dotnetday/main/docs/images/outputs/email-report.png)
 
 *The daily report shows 9 deployments, 6 healthy, 3 rollbacks, and 3 GitHub issues created — complete with response time details and issue links.*
 
