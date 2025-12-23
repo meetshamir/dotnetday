@@ -75,13 +75,13 @@ When a slot swap alert fires, the agent:
 
 **Healthy Deployment - No Action Needed:**
 
-![Teams Post - Healthy](https://raw.githubusercontent.com/microsoft/sre-agent/main/samples/proactive-reliability/docs/images/outputs/teams-post-healthy.png)
+![Teams Post - Healthy](https://raw.githubusercontent.com/meetshamir/dotnetday/main/docs/images/outputs/teams-post-healthy.png)
 
 *The agent confirms the deployment is healthy — response time (22ms) is 80% faster than baseline (116ms).*
 
 **Degraded Deployment - Automatic Rollback:**
 
-![Teams Post - Rollback](https://raw.githubusercontent.com/microsoft/sre-agent/main/samples/proactive-reliability/docs/images/outputs/teams-post-rollback.png)
+![Teams Post - Rollback](https://raw.githubusercontent.com/meetshamir/dotnetday/main/docs/images/outputs/teams-post-rollback.png)
 
 *The agent detects +332% latency regression (505ms vs 116ms baseline), executes a slot swap to rollback, and creates [GitHub Issue #5](https://github.com/meetshamir/dotnetday/issues/5).*
 
@@ -94,7 +94,7 @@ Every 24 hours, the reporter agent:
 
 **Email Report:**
 
-![Email Report](https://raw.githubusercontent.com/microsoft/sre-agent/main/samples/proactive-reliability/docs/images/outputs/email-report.png)
+![Email Report](https://raw.githubusercontent.com/meetshamir/dotnetday/main/docs/images/outputs/email-report.png)
 
 *The daily report shows 9 deployments, 6 healthy, 3 rollbacks, and 3 GitHub issues created — complete with response time details and issue links.*
 
