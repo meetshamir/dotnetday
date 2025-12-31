@@ -194,7 +194,18 @@ After the infrastructure is deployed, configure the SRE Agent before running the
    - **Mode**: **Privileged** (required for slot swap operations)
 4. Deploy the agent
 
-### 2.2 Create Sub-Agents
+### 2.2 Configure Connectors
+
+To enable email notifications and Teams integration, you must configure connectors in the SRE Agent settings.
+
+1. In the SRE Agent portal, navigate to **Settings** → **Connectors**
+2. Click **+ Add connector** and configure the following:
+   - **Send email** (Office 365 Outlook) — Required for the DeploymentReporter sub-agent to send email summaries
+   - **Send notification** (Microsoft Teams) — Required for posting incident updates to Teams channels
+
+> 📖 For detailed connector setup instructions, see the [Azure SRE Agent Connectors documentation](https://learn.microsoft.com/en-us/azure/sre-agent/connectors).
+
+### 2.3 Create Sub-Agents
 
 Navigate to the **Subagent builder** tab and click **Create** to create each of the following:
 
